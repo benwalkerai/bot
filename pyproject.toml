@@ -1,0 +1,18 @@
+[project]
+name = "bot"
+version = "0.1.0"
+description = "Multi-provider AI chatbot for the terminal"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.25.0",
+    "openai>=1.0.0",
+    "rich>=13.0.0",
+    "click>=8.0.0",
+]
+
+[project.scripts]
+bot = "bot.main:cli"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-mock"]
