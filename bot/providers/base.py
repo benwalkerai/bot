@@ -6,7 +6,7 @@ from typing import Iterator
 class BaseProvider(ABC):
 
     @abstractmethod
-    def strea_chat(
+    def stream_chat(
         self,
         messages: list[dict],
         system: str,

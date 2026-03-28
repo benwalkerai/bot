@@ -22,7 +22,7 @@ class AnthropicProvider(BaseProvider):
 
     def stream_chat(self, messages: list[dict], system: str) -> Iterator[str]:
         with self.client.messages.stream(
-            model.self.model,
+            model=self.model,
             max_tokens=2048,
             system=system,
             messages=messages,

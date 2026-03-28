@@ -4,7 +4,7 @@ from .base import BaseProvider
 from .anthropic import AnthropicProvider
 from .llamacpp import LlamaCppProvider
 from .openai import OpenAIProvider
-from ollama import OllamaProvider
+from .ollama import OllamaProvider
 
 PROVIDERS: dict[str, type[BaseProvider]] = {
     "anthropic": AnthropicProvider,

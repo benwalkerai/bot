@@ -16,7 +16,7 @@ DEFAULT_CONFIG : dict[str, Any] = {
     "provider": "anthropic",
     "providers": {
         "anthropic": {
-            "model": "claude-haiku-4-5-20251001",
+            "model": "claude-haiku-4-5",
             "api_key_env": "ANTHROPIC_API_KEY",
         },
         "openai": {
@@ -28,7 +28,7 @@ DEFAULT_CONFIG : dict[str, Any] = {
             "base_url": "http://localhost:11434",
         },
         "llamacpp": {
-            "model"; "local",
+            "model": "local",
             "base_url": "http://localhost:8080",
         },
     }
