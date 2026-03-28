@@ -175,4 +175,4 @@ Works on Linux, macOS, and Windows. Config and history paths resolve correctly o
 
 ## License
 
-MIT
+GPL-3.0
