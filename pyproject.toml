@@ -40,3 +40,9 @@ package = true
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["bot*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-mock>=3.15.1",
+]
