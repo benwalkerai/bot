@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inzen-bot"
-version = "0.1.0"
+version = "0.1.1"
 description = "Multi-provider AI chatbot for the terminal"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { text = "GNU" }
+license = { text = "GPL-3.0-or-later" }
 keywords = ["cli", "ai", "chatbot", "llm", "terminal", "anthropic", "openai", "ollama"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Environment :: Console",
     "Topic :: Utilities",
