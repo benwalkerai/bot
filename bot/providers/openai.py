@@ -1,4 +1,4 @@
-"""OpenAI provider - also works for Grow, Together, etc. via base_url."""
+"""OpenAI provider - also works for Groq, Together, etc. via base_url."""
 
 import os
 from typing import Iterator
@@ -22,9 +22,9 @@ class OpenAIProvider(BaseProvider):
             kwargs["base_url"] = config["base_url"]
 
         self.client = openai.OpenAI(**kwargs)
-        self.model = config.get("model", "gpt-5.4-nano")
+        self.model = config.get("model", "gpt-4o-mini")
 
-    def stream_chat(self, messages: list[dict], system: str) ->Iterator[str]:
+    def stream_chat(self, messages: list[dict], system: str) -> Iterator[str]:
         full_messages = [{"role": "system", "content": system}] + messages
         stream = self.client.chat.completions.create(
             model=self.model,

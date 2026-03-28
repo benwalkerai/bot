@@ -8,11 +8,11 @@ import os
 from pathlib import Path
 from typing import Any
 
-BOT_DIR = Path.home() /".bot"
+BOT_DIR = Path.home() / ".bot"
 CONFIG_FILE = BOT_DIR / "config.json"
-MAX_HISTORY = 50 # max messages to keep in history
+MAX_HISTORY = 50
 
-DEFAULT_CONFIG : dict[str, Any] = {
+DEFAULT_CONFIG: dict[str, Any] = {
     "provider": "anthropic",
     "providers": {
         "anthropic": {
@@ -20,7 +20,7 @@ DEFAULT_CONFIG : dict[str, Any] = {
             "api_key_env": "ANTHROPIC_API_KEY",
         },
         "openai": {
-            "model": "gpt-5.4-nano",
+            "model": "gpt-4o-mini",
             "api_key_env": "OPENAI_API_KEY",
         },
         "ollama": {
@@ -82,7 +82,7 @@ def get_provider_config(config: dict, provider: str) -> dict:
     providers = config.get("providers", {})
     if provider not in providers:
         raise ValueError(
-            f"Unknown provder '{provider}'. "
+            f"Unknown provider '{provider}'. "
             f"Available: {', '.join(providers.keys())}"
         )
     return providers[provider]

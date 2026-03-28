@@ -7,7 +7,7 @@ class LlamaCppProvider(OpenAIProvider):
     """
     llama.cpp exposes an OpenAI-compatible API at localhost:8080/v1,
     so we reuse the OpenAI provider, just pointing at a different base_url
-    and using a dummp API key (required by the openai SDK but not validated).
+    and using a dummy API key (required by the openai SDK but not validated).
     """
 
     def __init__(self, config: dict):

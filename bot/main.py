@@ -82,7 +82,7 @@ def cli(
             sys.exit(1)
         config["provider"] = set_provider
         save_config(config)
-        console.print(f"[green]Default provider set to '{set_provider}' .[/green]")
+        console.print(f"[green]Default provider set to '{set_provider}'.[/green]")
         return
     
     if set_model:

@@ -3,18 +3,30 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bot"
+name = "inzen-bot"
 version = "0.1.0"
 description = "Multi-provider AI chatbot for the terminal"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { text = "GNU" }
+keywords = ["cli", "ai", "chatbot", "llm", "terminal", "anthropic", "openai", "ollama"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Topic :: Utilities",
+]
 dependencies = [
     "anthropic>=0.25.0",
     "openai>=1.0.0",
     "rich>=13.0.0",
     "click>=8.0.0",
-    "ollama>=0.6.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/benwalkerai/bot"
+Issues = "https://github.com/benwalkerai/bot/issues"
 
 [project.scripts]
 bot = "bot.main:cli"
