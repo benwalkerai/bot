@@ -1,4 +1,6 @@
 # inzen-bot 🤖
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/inzen-bot?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/inzen-bot)
+![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)
 
 A multi-provider AI chatbot for the terminal. Chat with Claude, GPT-4, Ollama, or llama.cpp without leaving your shell — with full conversation history so you can follow multi-step instructions one command at a time.
 
