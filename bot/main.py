@@ -9,20 +9,28 @@ bot --set-model llama3.2
 bot --clear
 bot --history
 bot --providers
+bot --session myproject what is a venv
+bot --sessions
+bot --clear-session myproject
 """
 
 import sys
+from datetime import datetime
 
 import click
 from rich.console import Console
 
 from .config import (
     clear_history,
+    clear_session,
     get_provider_config,
+    list_sessions,
     load_config,
     load_history,
+    load_session,
     save_config,
     save_history,
+    save_session,
 )
 from .providers import PROVIDERS, get_provider
 
@@ -61,6 +69,16 @@ def resolve_provider(config: dict, override: str | None) -> str:
 @click.option(
     "--providers", "list_providers", is_flag=True, help="List all configured providers"
 )
+@click.option("--session", "session_name", default=None, help="Named session to use.")
+@click.option(
+    "--sessions", "list_sessions_flag", is_flag=True, help="List saved sessions."
+)
+@click.option(
+    "--clear-session",
+    "clear_session_name",
+    default=None,
+    help="Delete a named session.",
+)
 def cli(
     message: tuple,
     provider: str | None,
@@ -69,8 +87,31 @@ def cli(
     do_clear: bool,
     show_history: bool,
     list_providers: bool,
+    session_name: str | None,
+    list_sessions_flag: bool,
+    clear_session_name: str | None,
 ) -> None:
     config = load_config()
+
+    if list_sessions_flag:
+        sessions = list_sessions()
+        if not sessions:
+            console.print("[dim]No saved sessions.[/dim]")
+            return
+        console.print("\n[bold]Saved sessions:[/bold]")
+        for s in sessions:
+            ts = datetime.fromtimestamp(s["modified"]).strftime("%Y-%m-%d %H:%M")
+            console.print(
+                f"  [cyan]{s['name']}[/cyan]  "
+                f"[dim]{s['messages']} messages · {ts}[/dim]"
+            )
+        console.print()
+        return
+
+    if clear_session_name:
+        clear_session(clear_session_name)
+        console.print(f"[green]Session '{clear_session_name}' cleared.[/green]")
+        return
 
     if list_providers:
         current = config.get("provider", "anthropic")
@@ -129,7 +170,7 @@ def cli(
         sys.exit(0)
 
     user_text = " ".join(message)
-    history = load_history(active_provider)
+    history = load_session(session_name) if session_name else load_history(active_provider)
     history.append({"role": "user", "content": user_text})
 
     try:
@@ -154,11 +195,17 @@ def cli(
         console.print("\n[dim]Interrupted.[/dim]")
         if full_response:
             history.append({"role": "assistant", "content": full_response})
-            save_history(active_provider, history)
+            if session_name:
+                save_session(session_name, history)
+            else:
+                save_history(active_provider, history)
         sys.exit(0)
     except Exception as e:
         console.print(f"\n[red]Error:[/red] {e}")
         sys.exit(1)
 
     history.append({"role": "assistant", "content": full_response})
-    save_history(active_provider, history)
+    if session_name:
+        save_session(session_name, history)
+    else:
+        save_history(active_provider, history)

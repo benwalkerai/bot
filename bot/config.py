@@ -10,6 +10,7 @@ from typing import Any
 BOT_DIR = Path.home() / ".bot"
 CONFIG_FILE = BOT_DIR / "config.json"
 MAX_HISTORY = 50
+SESSIONS_DIR = BOT_DIR / "sessions"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "provider": "anthropic",
@@ -38,6 +39,10 @@ def ensure_dir() -> None:
     BOT_DIR.mkdir(exist_ok=True)
 
 
+def ensure_sessions_dir() -> None:
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+
 def load_config() -> dict[str, Any]:
     ensure_dir()
     if not CONFIG_FILE.exists():
@@ -45,7 +50,6 @@ def load_config() -> dict[str, Any]:
         return DEFAULT_CONFIG.copy()
     with open(CONFIG_FILE) as f:
         saved = json.load(f)
-    # Merge so new default providers appear for existing users
     merged = DEFAULT_CONFIG.copy()
     merged.update(saved)
     providers = DEFAULT_CONFIG["providers"].copy()
@@ -92,3 +96,45 @@ def get_provider_config(config: dict, provider: str) -> dict:
             f"Unknown provider '{provider}'. Available: {', '.join(providers.keys())}"
         )
     return providers[provider]
+
+
+def session_file(name: str) -> Path:
+    return SESSIONS_DIR / f"{name}.json"
+
+
+def load_session(name: str) -> list[dict]:
+    path = session_file(name)
+    if not path.exists():
+        return []
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_session(name: str, history: list[dict]) -> None:
+    ensure_sessions_dir()
+    trimmed = history[-(MAX_HISTORY * 2) :]
+    with open(session_file(name), "w") as f:
+        json.dump(trimmed, f, indent=2)
+
+
+def clear_session(name: str) -> None:
+    path = session_file(name)
+    if path.exists():
+        path.unlink()
+
+
+def list_sessions() -> list[dict]:
+    ensure_sessions_dir()
+    sessions = []
+    for path in sorted(SESSIONS_DIR.glob("*.json")):
+        try:
+            with open(path) as f:
+                history = json.load(f)
+            sessions.append({
+                "name": path.stem,
+                "messages": len(history),
+                "modified": path.stat().st_mtime,
+            })
+        except (json.JSONDecodeError, OSError):
+            continue
+    return sessions
