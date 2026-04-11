@@ -111,3 +111,92 @@ def test_get_provider_config_raises_on_unknown(tmp_path):
         config = {"providers": {"anthropic": {"model": "claude-haiku-4-5"}}}
         with pytest.raises(ValueError, match="Unknown"):
             get_provider_config(config, "nonexistent")
+
+
+# --- Session tests ---
+
+
+def test_save_and_load_session(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import load_session, save_session
+
+        messages = [
+            {"role": "user", "content": "what is a venv"},
+            {"role": "assistant", "content": "a virtual environment"},
+        ]
+        save_session("myproject", messages)
+        loaded = load_session("myproject")
+        assert loaded == messages
+
+
+def test_load_session_returns_empty_if_missing(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import load_session
+
+        result = load_session("nonexistent")
+        assert result == []
+
+
+def test_clear_session_removes_file(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import clear_session, load_session, save_session
+
+        save_session("myproject", [{"role": "user", "content": "hello"}])
+        clear_session("myproject")
+        assert load_session("myproject") == []
+
+
+def test_clear_session_noop_if_missing(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import clear_session
+
+        # Should not raise
+        clear_session("nonexistent")
+
+
+def test_list_sessions_returns_all(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import list_sessions, save_session
+
+        save_session("alpha", [{"role": "user", "content": "a"}])
+        save_session("beta", [{"role": "user", "content": "b"}, {"role": "assistant", "content": "c"}])
+        sessions = list_sessions()
+        names = [s["name"] for s in sessions]
+        assert "alpha" in names
+        assert "beta" in names
+
+
+def test_list_sessions_message_count(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import list_sessions, save_session
+
+        messages = [{"role": "user", "content": str(i)} for i in range(6)]
+        save_session("counted", messages)
+        sessions = list_sessions()
+        match = next(s for s in sessions if s["name"] == "counted")
+        assert match["messages"] == 6
+
+
+def test_list_sessions_empty(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import list_sessions
+
+        assert list_sessions() == []
+
+
+def test_session_trimmed_to_max(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir), patch("bot.config.MAX_HISTORY", 2):
+        from bot.config import load_session, save_session
+
+        messages = [{"role": "user", "content": str(i)} for i in range(10)]
+        save_session("trim-test", messages)
+        loaded = load_session("trim-test")
+        assert len(loaded) == 4  # MAX_HISTORY * 2

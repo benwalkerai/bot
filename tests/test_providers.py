@@ -9,7 +9,7 @@ def test_anthropic_raises_on_missing_key():
     with patch.dict("os.environ", {}, clear=True):
         from bot.providers.anthropic import AnthropicProvider
 
-        with pytest.raises(EnvironmentError, match="Missing API key"):
+        with pytest.raises(OSError, match="Missing API key"):
             AnthropicProvider(
                 {"model": "claude-haiku-4-5", "api_key_env": "ANTHROPIC_API_KEY"}
             )
@@ -19,7 +19,7 @@ def test_openai_raises_on_missing_key():
     with patch.dict("os.environ", {}, clear=True):
         from bot.providers.openai import OpenAIProvider
 
-        with pytest.raises(EnvironmentError, match="Missing API key"):
+        with pytest.raises(OSError, match="Missing API key"):
             OpenAIProvider({"model": "gpt-4o-mini", "api_key_env": "OPENAI_API_KEY"})
 
 
