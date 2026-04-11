@@ -4,7 +4,6 @@ All data lives in ~/.bot/ - works on Linux, macOS and Windows.
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -31,11 +30,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "model": "local",
             "base_url": "http://localhost:8080",
         },
-    }
+    },
 }
+
 
 def ensure_dir() -> None:
     BOT_DIR.mkdir(exist_ok=True)
+
 
 def load_config() -> dict[str, Any]:
     ensure_dir()
@@ -52,13 +53,16 @@ def load_config() -> dict[str, Any]:
     merged["providers"] = providers
     return merged
 
+
 def save_config(config: dict[str, Any]) -> None:
     ensure_dir()
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
 
+
 def history_file(provider: str) -> Path:
     return BOT_DIR / f"history_{provider}.json"
+
 
 def load_history(provider: str) -> list[dict]:
     path = history_file(provider)
@@ -66,24 +70,25 @@ def load_history(provider: str) -> list[dict]:
         return []
     with open(path) as f:
         return json.load(f)
-    
+
+
 def save_history(provider: str, history: list[dict]) -> None:
     ensure_dir()
-    trimmed = history[-(MAX_HISTORY * 2):]
+    trimmed = history[-(MAX_HISTORY * 2) :]
     with open(history_file(provider), "w") as f:
         json.dump(trimmed, f, indent=2)
+
 
 def clear_history(provider: str) -> None:
     path = history_file(provider)
     if path.exists():
         path.unlink()
 
+
 def get_provider_config(config: dict, provider: str) -> dict:
     providers = config.get("providers", {})
     if provider not in providers:
         raise ValueError(
-            f"Unknown provider '{provider}'. "
-            f"Available: {', '.join(providers.keys())}"
+            f"Unknown provider '{provider}'. Available: {', '.join(providers.keys())}"
         )
     return providers[provider]
-

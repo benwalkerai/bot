@@ -1,10 +1,10 @@
 """Base class for all providers."""
 
 from abc import ABC, abstractmethod
-from typing import Iterator
+from collections.abc import Iterator
+
 
 class BaseProvider(ABC):
-
     @abstractmethod
     def stream_chat(
         self,

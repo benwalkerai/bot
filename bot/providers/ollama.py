@@ -1,9 +1,12 @@
 """Ollama provider - talks to a local Ollama server via its REST API."""
 
 import json
-from typing import Iterator
-from urllib import request, error as url_error
+from collections.abc import Iterator
+from urllib import error as url_error
+from urllib import request
+
 from .base import BaseProvider
+
 
 class OllamaProvider(BaseProvider):
     def __init__(self, config: dict):

@@ -1,7 +1,9 @@
 """llama.cpp provider - uses its OpenAI-compatible /v1 endpoint."""
 
 import os
+
 from .openai import OpenAIProvider
+
 
 class LlamaCppProvider(OpenAIProvider):
     """

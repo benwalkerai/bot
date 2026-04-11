@@ -1,8 +1,10 @@
 """Anthropic Provider."""
 
 import os
-from typing import Iterator
+from collections.abc import Iterator
+
 from .base import BaseProvider
+
 
 class AnthropicProvider(BaseProvider):
     def __init__(self, config: dict):
@@ -10,11 +12,11 @@ class AnthropicProvider(BaseProvider):
             import anthropic
         except ImportError:
             raise ImportError("Run: uv add anthropic")
-        
+
         api_key_env = config.get("api_key_env", "ANTHROPIC_API_KEY")
         api_key = os.environ.get(api_key_env)
         if not api_key:
-            raise EnvironmentError(
+            raise OSError(
                 f"Missing API key. Set the {api_key_env} environment variable."
             )
         self.client = anthropic.Anthropic(api_key=api_key)
@@ -27,5 +29,4 @@ class AnthropicProvider(BaseProvider):
             system=system,
             messages=messages,
         ) as stream:
-            for text in stream.text_stream:
-                yield text
+            yield from stream.text_stream

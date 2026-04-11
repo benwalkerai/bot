@@ -12,17 +12,19 @@ bot --providers
 """
 
 import sys
+
 import click
 from rich.console import Console
+
 from .config import (
-    load_config,
-    save_config,
-    load_history,
-    save_history,
     clear_history,
     get_provider_config,
+    load_config,
+    load_history,
+    save_config,
+    save_history,
 )
-from .providers import get_provider, PROVIDERS
+from .providers import PROVIDERS, get_provider
 
 console = Console()
 
@@ -32,6 +34,7 @@ Format commands in code blocks. When giving multi-step instructions, number the 
 so the user can follow along one step at a time. If the user says things like 'step 2?' or
 'next?' they're continuing from the previous response - refer to context and continue.
 """
+
 
 def resolve_provider(config: dict, override: str | None) -> str:
     name = override or config.get("provider", "anthropic")
@@ -43,17 +46,24 @@ def resolve_provider(config: dict, override: str | None) -> str:
         sys.exit(1)
     return name
 
+
 @click.command(context_settings={"ignore_unknown_options": True})
 @click.argument("message", nargs=-1)
 @click.option("--provider", "-p", default=None, help="Provider to use for this query.")
 @click.option("--set-provider", default=None, help="Set the default provider.")
-@click.option("--set-model", default=None, help="Set the model for the current provider.")
+@click.option(
+    "--set-model", default=None, help="Set the model for the current provider."
+)
 @click.option("--clear", "do_clear", is_flag=True, help="Clear conversation history.")
-@click.option("--history", "show_history", is_flag=True, help="Print conversation history")
-@click.option("--providers", "list_providers", is_flag=True, help="List all configured providers")
+@click.option(
+    "--history", "show_history", is_flag=True, help="Print conversation history"
+)
+@click.option(
+    "--providers", "list_providers", is_flag=True, help="List all configured providers"
+)
 def cli(
     message: tuple,
-    provider: str | None, 
+    provider: str | None,
     set_provider: str | None,
     set_model: str | None,
     do_clear: bool,
@@ -72,7 +82,7 @@ def cli(
             console.print(f"  {marker} [cyan]{name}[/cyan]  {model}{base}")
         console.print(f"\n  [dim]Default: {current}[/dim]\n")
         return
-    
+
     if set_provider:
         if set_provider not in PROVIDERS:
             console.print(
@@ -84,21 +94,21 @@ def cli(
         save_config(config)
         console.print(f"[green]Default provider set to '{set_provider}'.[/green]")
         return
-    
+
     if set_model:
         active = resolve_provider(config, provider)
         config["providers"][active]["model"] = set_model
         save_config(config)
         console.print(f"[green]Model for '{active}' set to '{set_model}'.[/green]")
         return
-    
+
     active_provider = resolve_provider(config, provider)
 
     if do_clear:
         clear_history(active_provider)
         console.print(f"[green]History cleared for '{active_provider}'.[/green]")
         return
-    
+
     if show_history:
         history = load_history(active_provider)
         if not history:
@@ -110,7 +120,7 @@ def cli(
             colour = "cyan" if msg["role"] == "user" else "green"
             console.print(f"[{colour}][{role}][/{colour}] {msg['content']}\n")
         return
-    
+
     if not message:
         console.print(
             "[yellow]Usage:[/yellow] bot [OPTIONS] YOUR MESSAGE\n"
@@ -125,7 +135,7 @@ def cli(
     try:
         provider_config = get_provider_config(config, active_provider)
         prov = get_provider(active_provider, provider_config)
-    except (ValueError, ImportError, EnvironmentError) as e:
+    except (OSError, ValueError, ImportError) as e:
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 

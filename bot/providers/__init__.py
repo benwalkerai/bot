@@ -1,10 +1,10 @@
 """Registry - maps provider name -> class."""
 
-from .base import BaseProvider
 from .anthropic import AnthropicProvider
+from .base import BaseProvider
 from .llamacpp import LlamaCppProvider
-from .openai import OpenAIProvider
 from .ollama import OllamaProvider
+from .openai import OpenAIProvider
 
 PROVIDERS: dict[str, type[BaseProvider]] = {
     "anthropic": AnthropicProvider,
@@ -12,6 +12,7 @@ PROVIDERS: dict[str, type[BaseProvider]] = {
     "ollama": OllamaProvider,
     "llamacpp": LlamaCppProvider,
 }
+
 
 def get_provider(name: str, config: dict) -> BaseProvider:
     if name not in PROVIDERS:

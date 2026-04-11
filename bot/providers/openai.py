@@ -1,8 +1,10 @@
 """OpenAI provider - also works for Groq, Together, etc. via base_url."""
 
 import os
-from typing import Iterator
+from collections.abc import Iterator
+
 from .base import BaseProvider
+
 
 class OpenAIProvider(BaseProvider):
     def __init__(self, config: dict):
@@ -10,11 +12,11 @@ class OpenAIProvider(BaseProvider):
             import openai
         except ImportError:
             raise ImportError("Run: uv add openai")
-        
+
         api_key_env = config.get("api_key_env", "OPENAI_API_KEY")
         api_key = os.environ.get(api_key_env)
         if not api_key:
-            raise EnvironmentError(
+            raise OSError(
                 f"Missing API key. Set the {api_key_env} environment variable."
             )
         kwargs = {"api_key": api_key}
