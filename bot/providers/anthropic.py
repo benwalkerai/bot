@@ -30,3 +30,8 @@ class AnthropicProvider(BaseProvider):
             messages=messages,
         ) as stream:
             yield from stream.text_stream
+            msg = stream.get_final_message()
+            self.last_usage = {
+                "input_tokens": msg.usage.input_tokens,
+                "output_tokens": msg.usage.output_tokens,
+            }

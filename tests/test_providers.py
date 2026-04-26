@@ -105,3 +105,77 @@ def test_get_provider_raises_on_unknown():
 
     with pytest.raises(ValueError, match="Unknown provider"):
         get_provider("nonexistent", {})
+
+
+# --- Usage capture tests ---
+
+
+def test_anthropic_stream_chat_sets_last_usage():
+    from unittest.mock import MagicMock, patch
+
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        with patch("anthropic.Anthropic"):
+            from bot.providers.anthropic import AnthropicProvider
+
+            provider = AnthropicProvider(
+                {"model": "claude-haiku-4-5", "api_key_env": "ANTHROPIC_API_KEY"}
+            )
+            mock_stream = MagicMock()
+            mock_stream.text_stream = iter(["hello ", "world"])
+            mock_stream.get_final_message.return_value.usage.input_tokens = 10
+            mock_stream.get_final_message.return_value.usage.output_tokens = 20
+            mock_stream.__enter__ = lambda s: mock_stream
+            mock_stream.__exit__ = MagicMock(return_value=False)
+            provider.client.messages.stream.return_value = mock_stream
+
+            chunks = list(provider.stream_chat([{"role": "user", "content": "hi"}], "system"))
+            assert chunks == ["hello ", "world"]
+            assert provider.last_usage == {"input_tokens": 10, "output_tokens": 20}
+
+
+def test_ollama_stream_chat_sets_last_usage():
+    import json
+    from io import BytesIO
+    from unittest.mock import MagicMock, patch
+
+    from bot.providers.ollama import OllamaProvider
+
+    provider = OllamaProvider({"model": "llama3"})
+    lines = [
+        json.dumps({"message": {"content": "hi"}, "done": False}).encode(),
+        json.dumps({"message": {"content": ""}, "done": True, "prompt_eval_count": 5, "eval_count": 15}).encode(),
+    ]
+    mock_resp = MagicMock()
+    mock_resp.__enter__ = lambda s: iter(lines)
+    mock_resp.__exit__ = MagicMock(return_value=False)
+
+    with patch("bot.providers.ollama.request.urlopen", return_value=mock_resp):
+        chunks = list(provider.stream_chat([{"role": "user", "content": "hi"}], "system"))
+    assert "hi" in chunks
+    assert provider.last_usage == {"input_tokens": 5, "output_tokens": 15}
+
+
+def test_openai_stream_chat_sets_last_usage():
+    from unittest.mock import MagicMock, patch
+
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+        with patch("openai.OpenAI"):
+            from bot.providers.openai import OpenAIProvider
+
+            provider = OpenAIProvider(
+                {"model": "gpt-4o-mini", "api_key_env": "OPENAI_API_KEY"}
+            )
+            chunk1 = MagicMock()
+            chunk1.choices = [MagicMock()]
+            chunk1.choices[0].delta.content = "hello"
+            chunk1.usage = None
+            chunk2 = MagicMock()
+            chunk2.choices = []
+            chunk2.usage = MagicMock()
+            chunk2.usage.prompt_tokens = 8
+            chunk2.usage.completion_tokens = 12
+            provider.client.chat.completions.create.return_value = iter([chunk1, chunk2])
+
+            chunks = list(provider.stream_chat([{"role": "user", "content": "hi"}], "system"))
+            assert chunks == ["hello"]
+            assert provider.last_usage == {"input_tokens": 8, "output_tokens": 12}

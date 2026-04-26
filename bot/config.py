@@ -89,6 +89,32 @@ def clear_history(provider: str) -> None:
         path.unlink()
 
 
+def usage_file(provider: str) -> Path:
+    return BOT_DIR / f"usage_{provider}.json"
+
+
+def load_usage(provider: str) -> dict:
+    path = usage_file(provider)
+    if not path.exists():
+        return {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_usage(provider: str, data: dict) -> None:
+    ensure_dir()
+    with open(usage_file(provider), "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def accumulate_usage(provider: str, input_tokens: int, output_tokens: int, cost: float) -> None:
+    data = load_usage(provider)
+    data["input_tokens"] += input_tokens
+    data["output_tokens"] += output_tokens
+    data["cost_usd"] += cost
+    save_usage(provider, data)
+
+
 def get_provider_config(config: dict, provider: str) -> dict:
     providers = config.get("providers", {})
     if provider not in providers:
@@ -107,14 +133,31 @@ def load_session(name: str) -> list[dict]:
     if not path.exists():
         return []
     with open(path) as f:
-        return json.load(f)
+        data = json.load(f)
+    # Support both old format (plain list) and new format (dict with metadata)
+    if isinstance(data, list):
+        return data
+    return data.get("history", [])
 
 
-def save_session(name: str, history: list[dict]) -> None:
+def load_session_with_meta(name: str) -> dict:
+    """Return {"provider": str|None, "history": list[dict]} or None if not found."""
+    path = session_file(name)
+    if not path.exists():
+        return None
+    with open(path) as f:
+        data = json.load(f)
+    if isinstance(data, list):
+        return {"provider": None, "history": data}
+    return {"provider": data.get("provider"), "history": data.get("history", [])}
+
+
+def save_session(name: str, history: list[dict], provider: str | None = None) -> None:
     ensure_sessions_dir()
     trimmed = history[-(MAX_HISTORY * 2) :]
+    payload: Any = {"provider": provider, "history": trimmed}
     with open(session_file(name), "w") as f:
-        json.dump(trimmed, f, indent=2)
+        json.dump(payload, f, indent=2)
 
 
 def clear_session(name: str) -> None:
@@ -129,11 +172,23 @@ def list_sessions() -> list[dict]:
     for path in sorted(SESSIONS_DIR.glob("*.json")):
         try:
             with open(path) as f:
-                history = json.load(f)
+                data = json.load(f)
+            if isinstance(data, list):
+                history = data
+                provider = None
+            else:
+                history = data.get("history", [])
+                provider = data.get("provider")
+            first_user = next(
+                (m["content"] for m in history if m.get("role") == "user"), None
+            )
+            preview = (first_user[:60] + "…") if first_user and len(first_user) > 60 else first_user
             sessions.append({
                 "name": path.stem,
                 "messages": len(history),
                 "modified": path.stat().st_mtime,
+                "provider": provider,
+                "preview": preview,
             })
         except (json.JSONDecodeError, OSError):
             continue

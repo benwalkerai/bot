@@ -38,6 +38,10 @@ class OllamaProvider(BaseProvider):
                     if content:
                         yield content
                     if chunk.get("done"):
+                        self.last_usage = {
+                            "input_tokens": chunk.get("prompt_eval_count", 0),
+                            "output_tokens": chunk.get("eval_count", 0),
+                        }
                         break
         except url_error.URLError as e:
             raise ConnectionError(

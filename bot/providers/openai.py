@@ -32,8 +32,13 @@ class OpenAIProvider(BaseProvider):
             model=self.model,
             messages=full_messages,
             stream=True,
+            stream_options={"include_usage": True},
         )
         for chunk in stream:
-            delta = chunk.choices[0].delta
-            if delta.content:
-                yield delta.content
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+            if chunk.usage:
+                self.last_usage = {
+                    "input_tokens": chunk.usage.prompt_tokens,
+                    "output_tokens": chunk.usage.completion_tokens,
+                }
