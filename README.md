@@ -35,6 +35,8 @@ No browser. No switching apps. Just ask and keep working.
 - [Providers](#providers)
 - [Configuration](#configuration)
 - [Requirements](#requirements)
+- [Contributing](#contributing)
+- [Releasing to PyPI](#releasing-to-pypi)
 
 ---
 
@@ -235,6 +237,48 @@ Works on Linux, macOS, and Windows. Config and history paths resolve correctly o
 ## Built by
 
 [Inzen](https://inzen.ai) — AI consulting and LLM application development.
+
+---
+
+## Contributing
+
+```bash
+git clone https://github.com/benwalkerai/bot
+cd bot
+uv sync --group dev
+uv run pytest          # run tests
+uv run ruff check .    # lint
+```
+
+CI runs automatically on every push and pull request via GitHub Actions — tests and ruff must pass before merging.
+
+---
+
+## Releasing to PyPI
+
+1. **Bump the version** in `pyproject.toml`:
+
+   ```toml
+   [project]
+   version = "0.3.0"
+   ```
+
+2. **Commit the change:**
+
+   ```bash
+   git add pyproject.toml
+   git commit -m "chore: bump version to 0.3.0"
+   git push
+   ```
+
+3. **Tag the release** — this is what triggers the PyPI publish workflow:
+
+   ```bash
+   git tag v0.3.0
+   git push --tags
+   ```
+
+The `publish.yml` GitHub Actions workflow will run the tests, build the package, and publish to PyPI automatically using the `PYPI_API_TOKEN` secret. A regular `git push` without a tag only triggers CI — it will never publish to PyPI.
 
 ---
 
