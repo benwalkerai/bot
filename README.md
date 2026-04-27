@@ -289,26 +289,25 @@ CI runs automatically on every push and pull request via GitHub Actions — test
 
 ## Releasing to PyPI
 
-1. **Bump the version** in `pyproject.toml`:
-
-   ```toml
-   [project]
-   version = "0.3.0"
-   ```
-
-2. **Commit the change:**
+1. **Update the changelog** from conventional commits:
 
    ```bash
-   git add pyproject.toml
-   git commit -m "chore: bump version to 0.3.0"
-   git push
+   uv run git-cliff --output CHANGELOG.md
+   git add CHANGELOG.md
+   git commit -m "docs: update changelog"
    ```
 
-3. **Tag the release** — this is what triggers the PyPI publish workflow:
+2. **Bump the version** — this updates `pyproject.toml`, creates a commit, and tags it automatically:
 
    ```bash
-   git tag v0.3.0
-   git push --tags
+   # patch: 0.2.1 → 0.2.2  |  minor: 0.2.1 → 0.3.0  |  major: 0.2.1 → 1.0.0
+   uv run bump-my-version bump patch
+   ```
+
+3. **Push the commit and tag** — the tag triggers the PyPI publish workflow:
+
+   ```bash
+   git push && git push --tags
    ```
 
 The `publish.yml` GitHub Actions workflow will run the tests, build the package, and publish to PyPI automatically using the `PYPI_API_TOKEN` secret. A regular `git push` without a tag only triggers CI — it will never publish to PyPI.

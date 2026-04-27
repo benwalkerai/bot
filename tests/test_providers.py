@@ -135,7 +135,6 @@ def test_anthropic_stream_chat_sets_last_usage():
 
 def test_ollama_stream_chat_sets_last_usage():
     import json
-    from io import BytesIO
     from unittest.mock import MagicMock, patch
 
     from bot.providers.ollama import OllamaProvider

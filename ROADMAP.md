@@ -13,11 +13,15 @@ A running list of planned improvements and future features.
 ## Developer Experience
 
 - [x] **CI on every push** — run tests and ruff check on every PR and push to main, not just tags
-- [ ] **Automatic version bumping** — e.g. `bump-my-version` so the version is never out of sync with the tag
-- [ ] **Changelog generation** — e.g. `git-cliff` to auto-generate a changelog from conventional commits
+- [x] **Automatic version bumping** — e.g. `bump-my-version` so the version is never out of sync with the tag
+- [x] **Changelog generation** — e.g. `git-cliff` to auto-generate a changelog from conventional commits
 
 ## Distribution
 
 - [ ] **Homebrew formula** — so Mac users can `brew install inzen-bot`
 - [ ] **Windows installer / winget package** — native Windows distribution
 - [ ] **Docker image** — for containerised or server environments
+
+## Security
+- [ ] **Ensure app is secure** - check for possbile ways the app could be exploited?
+- [ ] **Add security and safety guardrails** - add guardrails to app to ensure safety and security.
