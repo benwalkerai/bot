@@ -1,5 +1,7 @@
 """Tests for config and history management."""
 
+import os
+import stat
 from unittest.mock import patch
 
 import pytest
@@ -111,6 +113,60 @@ def test_get_provider_config_raises_on_unknown(tmp_path):
         config = {"providers": {"anthropic": {"model": "claude-haiku-4-5"}}}
         with pytest.raises(ValueError, match="Unknown"):
             get_provider_config(config, "nonexistent")
+
+
+def test_validate_session_name_accepts_safe_values():
+    from bot.config import validate_session_name
+
+    assert validate_session_name("myproject") == "myproject"
+    assert validate_session_name("proj_1.test-2") == "proj_1.test-2"
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["", "../etc/passwd", "my/project", "..", "name with spaces", "💥"],
+)
+def test_validate_session_name_rejects_unsafe_values(name):
+    from bot.config import validate_session_name
+
+    with pytest.raises(ValueError, match="Invalid session name"):
+        validate_session_name(name)
+
+
+def test_save_session_rejects_path_traversal_name(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import save_session
+
+        with pytest.raises(ValueError, match="Invalid session name"):
+            save_session("../bad", [{"role": "user", "content": "x"}], "anthropic")
+
+
+def test_saved_files_use_private_permissions_on_unix(tmp_path):
+    if os.name == "nt":
+        pytest.skip("Windows ACL semantics differ from Unix mode bits")
+
+    bot_dir = tmp_path / ".bot"
+    sessions_dir = bot_dir / "sessions"
+    config_file = bot_dir / "config.json"
+    with (
+        patch("bot.config.BOT_DIR", bot_dir),
+        patch("bot.config.SESSIONS_DIR", sessions_dir),
+        patch("bot.config.CONFIG_FILE", config_file),
+    ):
+        from bot.config import save_config, save_history, save_session, save_usage
+
+        save_config({"provider": "anthropic", "providers": {}})
+        save_history("anthropic", [{"role": "user", "content": "hello"}])
+        save_usage("anthropic", {"input_tokens": 1, "output_tokens": 2, "cost_usd": 0.0})
+        save_session("secure", [{"role": "user", "content": "hello"}], "anthropic")
+
+    assert stat.S_IMODE(bot_dir.stat().st_mode) == 0o700
+    assert stat.S_IMODE(sessions_dir.stat().st_mode) == 0o700
+    assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+    assert stat.S_IMODE((bot_dir / "history_anthropic.json").stat().st_mode) == 0o600
+    assert stat.S_IMODE((bot_dir / "usage_anthropic.json").stat().st_mode) == 0o600
+    assert stat.S_IMODE((sessions_dir / "secure.json").stat().st_mode) == 0o600
 
 
 # --- Session tests ---

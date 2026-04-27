@@ -223,6 +223,15 @@ def test_clear_session_flag(runner, mock_config):
         mock_clear.assert_called_once_with("myproject")
 
 
+def test_clear_session_rejects_invalid_name(runner, mock_config):
+    with patch("bot.main.load_config", return_value=mock_config):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--clear-session", "../bad"])
+        assert result.exit_code == 1
+        assert "Invalid session name" in result.output
+
+
 def test_chat_with_session_loads_session(runner, mock_config):
     mock_provider = MagicMock()
     mock_provider.stream_chat.return_value = iter(["response"])
@@ -266,6 +275,15 @@ def test_chat_with_session_saves_session(runner, mock_config):
         saved_history = mock_save.call_args[0][1]
         assert saved_history[-1]["role"] == "assistant"
         assert saved_history[-1]["content"] == "the answer"
+
+
+def test_chat_with_session_rejects_invalid_name(runner, mock_config):
+    with patch("bot.main.load_config", return_value=mock_config):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--session", "../bad", "hello"])
+        assert result.exit_code == 1
+        assert "Invalid session name" in result.output
 
 
 def test_chat_without_session_does_not_call_save_session(runner, mock_config):
@@ -605,6 +623,15 @@ def test_export_unknown_session(runner, mock_config):
 
         result = runner.invoke(cli, ["--export", "nonexistent"])
         assert result.exit_code == 1
+
+
+def test_export_rejects_invalid_session_name(runner, mock_config):
+    with patch("bot.main.load_config", return_value=mock_config):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--export", "../bad"])
+        assert result.exit_code == 1
+        assert "Invalid session name" in result.output
 
 
 def test_export_empty_session(runner, mock_config):

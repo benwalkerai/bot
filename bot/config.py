@@ -4,6 +4,8 @@ All data lives in ~/.bot/ - works on Linux, macOS and Windows.
 """
 
 import json
+import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +13,7 @@ BOT_DIR = Path.home() / ".bot"
 CONFIG_FILE = BOT_DIR / "config.json"
 MAX_HISTORY = 50
 SESSIONS_DIR = BOT_DIR / "sessions"
+SESSION_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "provider": "anthropic",
@@ -37,10 +40,40 @@ DEFAULT_CONFIG: dict[str, Any] = {
 
 def ensure_dir() -> None:
     BOT_DIR.mkdir(exist_ok=True)
+    _secure_dir(BOT_DIR)
 
 
 def ensure_sessions_dir() -> None:
+    ensure_dir()
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    _secure_dir(SESSIONS_DIR)
+
+
+def _secure_dir(path: Path) -> None:
+    # On Unix, keep bot data private to the current user.
+    if os.name != "nt":
+        try:
+            path.chmod(0o700)
+        except OSError:
+            pass
+
+
+def _secure_file(path: Path) -> None:
+    # Best-effort hardening; permission changes may fail on some filesystems.
+    if os.name != "nt":
+        try:
+            path.chmod(0o600)
+        except OSError:
+            pass
+
+
+def validate_session_name(name: str) -> str:
+    name = name.strip()
+    if not SESSION_NAME_RE.fullmatch(name):
+        raise ValueError(
+            "Invalid session name. Use 1-64 chars: letters, numbers, '.', '_' or '-'."
+        )
+    return name
 
 
 def load_config() -> dict[str, Any]:
@@ -62,6 +95,7 @@ def save_config(config: dict[str, Any]) -> None:
     ensure_dir()
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
+    _secure_file(CONFIG_FILE)
 
 
 def history_file(provider: str) -> Path:
@@ -79,8 +113,10 @@ def load_history(provider: str) -> list[dict]:
 def save_history(provider: str, history: list[dict]) -> None:
     ensure_dir()
     trimmed = history[-(MAX_HISTORY * 2) :]
-    with open(history_file(provider), "w") as f:
+    path = history_file(provider)
+    with open(path, "w") as f:
         json.dump(trimmed, f, indent=2)
+    _secure_file(path)
 
 
 def clear_history(provider: str) -> None:
@@ -103,8 +139,10 @@ def load_usage(provider: str) -> dict:
 
 def save_usage(provider: str, data: dict) -> None:
     ensure_dir()
-    with open(usage_file(provider), "w") as f:
+    path = usage_file(provider)
+    with open(path, "w") as f:
         json.dump(data, f, indent=2)
+    _secure_file(path)
 
 
 def accumulate_usage(provider: str, input_tokens: int, output_tokens: int, cost: float) -> None:
@@ -125,7 +163,8 @@ def get_provider_config(config: dict, provider: str) -> dict:
 
 
 def session_file(name: str) -> Path:
-    return SESSIONS_DIR / f"{name}.json"
+    safe_name = validate_session_name(name)
+    return SESSIONS_DIR / f"{safe_name}.json"
 
 
 def load_session(name: str) -> list[dict]:
@@ -156,8 +195,10 @@ def save_session(name: str, history: list[dict], provider: str | None = None) ->
     ensure_sessions_dir()
     trimmed = history[-(MAX_HISTORY * 2) :]
     payload: Any = {"provider": provider, "history": trimmed}
-    with open(session_file(name), "w") as f:
+    path = session_file(name)
+    with open(path, "w") as f:
         json.dump(payload, f, indent=2)
+    _secure_file(path)
 
 
 def clear_session(name: str) -> None:

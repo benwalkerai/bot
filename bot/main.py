@@ -41,6 +41,7 @@ from .config import (
     save_config,
     save_history,
     save_session,
+    validate_session_name,
 )
 from .providers import PROVIDERS, get_provider
 
@@ -235,6 +236,15 @@ def cli(
     chat_mode: bool,
 ) -> None:
     config = load_config()
+
+    for candidate in (session_name, clear_session_name, export_session):
+        if candidate is None:
+            continue
+        try:
+            validate_session_name(candidate)
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
 
     if show_usage:
         from .providers import PROVIDERS as _PROVIDERS

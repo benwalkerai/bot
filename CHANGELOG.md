@@ -15,6 +15,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Implement usage tracking and export functionality; update roadmap
 - Add interactive chat mode with slash commands
 
+### Miscellaneous
+
+- Add changelog generation and automatic version bumping
+
 ## [0.2.1] - 2026-04-11
 
 ### Documentation
