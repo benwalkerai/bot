@@ -31,6 +31,7 @@ No browser. No switching apps. Just ask and keep working.
 - [Install](#install)
 - [Setup](#setup)
 - [Usage](#usage)
+- [Interactive Mode](#interactive-mode)
 - [Named Sessions](#named-sessions)
 - [Providers](#providers)
 - [Configuration](#configuration)
@@ -128,7 +129,36 @@ bot --clear
 
 # List all configured providers
 bot --providers
+
+# Start persistent chat mode
+bot --chat
+
+# Start chat mode with an opening message
+bot --chat explain cron expressions
 ```
+
+---
+
+## Interactive Mode
+
+Use interactive mode when you want a persistent REPL instead of one-shot messages.
+
+```bash
+# Start a persistent chat session
+bot --chat
+
+# Start with an opening message, then continue the conversation
+bot --chat explain how systemd services work
+```
+
+Inside the chat session, the following slash commands are available:
+
+| Command    | Description                               |
+|------------|-------------------------------------------|
+| `/help`    | Show available commands                   |
+| `/history` | Print the conversation so far             |
+| `/clear`   | Clear conversation history for this session |
+| `/exit`    | Exit chat mode (also: `/quit`, `q`)       |
 
 ---
 
@@ -142,6 +172,9 @@ bot --session myproject what is a venv
 
 # Pick up where you left off
 bot --session myproject how do I activate it
+
+# Use a named session in interactive mode
+bot --session myproject --chat
 
 # List all saved sessions
 bot --sessions

@@ -17,6 +17,8 @@ bot --export myproject
 bot --export myproject --format text
 bot --export myproject --output myproject.md
 bot --usage
+bot --chat
+bot --session myproject --chat
 """
 
 import sys
@@ -102,6 +104,57 @@ def resolve_provider(config: dict, override: str | None) -> str:
     return name
 
 
+def persist_history(history: list[dict], session_name: str | None, active_provider: str) -> None:
+    if session_name:
+        save_session(session_name, history, active_provider)
+    else:
+        save_history(active_provider, history)
+
+
+def run_turn(
+    prov,
+    history: list[dict],
+    user_text: str,
+    active_system: str,
+    active_provider: str,
+    model: str,
+    session_name: str | None,
+) -> bool:
+    """Run one chat turn. Returns False if interrupted mid-stream."""
+    history.append({"role": "user", "content": user_text})
+    full_response = ""
+
+    try:
+        console.print()
+        for chunk in prov.stream_chat(history, active_system):
+            print(chunk, end="", flush=True)
+            full_response += chunk
+        print("\n")
+        if prov.last_usage:
+            in_tok = prov.last_usage["input_tokens"]
+            out_tok = prov.last_usage["output_tokens"]
+            cost = estimate_cost(model, in_tok, out_tok)
+            cost_str = f" · ~${cost:.4f}" if cost is not None else ""
+            console.print(f"[dim]↑ {in_tok:,} in · ↓ {out_tok:,} out{cost_str}[/dim]")
+            accumulate_usage(active_provider, in_tok, out_tok, cost or 0.0)
+    except ConnectionError as e:
+        console.print(f"\n[red]Connection error:[/red] {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[dim]Interrupted.[/dim]")
+        if full_response:
+            history.append({"role": "assistant", "content": full_response})
+            persist_history(history, session_name, active_provider)
+        return False
+    except Exception as e:
+        console.print(f"\n[red]Error:[/red] {e}")
+        sys.exit(1)
+
+    history.append({"role": "assistant", "content": full_response})
+    persist_history(history, session_name, active_provider)
+    return True
+
+
 @click.command(context_settings={"ignore_unknown_options": True})
 @click.argument("message", nargs=-1)
 @click.option("--provider", "-p", default=None, help="Provider to use for this query.")
@@ -157,6 +210,12 @@ def resolve_provider(config: dict, override: str | None) -> str:
     is_flag=True,
     help="Show cumulative token and cost totals per provider.",
 )
+@click.option(
+    "--chat",
+    "chat_mode",
+    is_flag=True,
+    help="Start interactive chat mode (persistent REPL).",
+)
 def cli(
     message: tuple,
     provider: str | None,
@@ -173,6 +232,7 @@ def cli(
     export_format: str,
     output_file: str | None,
     show_usage: bool,
+    chat_mode: bool,
 ) -> None:
     config = load_config()
 
@@ -288,16 +348,12 @@ def cli(
             console.print(f"[{colour}][{role}][/{colour}] {msg['content']}\n")
         return
 
-    if not message:
+    if not chat_mode and not message:
         console.print(
             "[yellow]Usage:[/yellow] bot [OPTIONS] YOUR MESSAGE\n"
             "       bot --help  for all options"
         )
         sys.exit(0)
-
-    user_text = " ".join(message)
-    history = load_session(session_name) if session_name else load_history(active_provider)
-    history.append({"role": "user", "content": user_text})
 
     try:
         provider_config = get_provider_config(config, active_provider)
@@ -306,41 +362,92 @@ def cli(
         console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
 
-    full_response = ""
     active_system = system_prompt if system_prompt is not None else SYSTEM_PROMPT
     model = config["providers"][active_provider].get("model", "")
-    try:
-        console.print()
-        for chunk in prov.stream_chat(history, active_system):
-            print(chunk, end="", flush=True)
-            full_response += chunk
-        print("\n")
-        if prov.last_usage:
-            in_tok = prov.last_usage["input_tokens"]
-            out_tok = prov.last_usage["output_tokens"]
-            cost = estimate_cost(model, in_tok, out_tok)
-            cost_str = f" · ~${cost:.4f}" if cost is not None else ""
-            console.print(f"[dim]↑ {in_tok:,} in · ↓ {out_tok:,} out{cost_str}[/dim]")
-            accumulate_usage(active_provider, in_tok, out_tok, cost or 0.0)
+    history = load_session(session_name) if session_name else load_history(active_provider)
 
-    except ConnectionError as e:
-        console.print(f"\n[red]Connection error:[/red] {e}")
-        sys.exit(1)
-    except KeyboardInterrupt:
-        console.print("\n[dim]Interrupted.[/dim]")
-        if full_response:
-            history.append({"role": "assistant", "content": full_response})
-            if session_name:
-                save_session(session_name, history, active_provider)
-            else:
-                save_history(active_provider, history)
+    if chat_mode:
+        console.print(
+            "[dim]Interactive mode. Type [bold]/help[/bold] for commands, "
+            "[bold]/exit[/bold] to leave.[/dim]"
+        )
+        if message:
+            first_message = " ".join(message)
+            if not run_turn(
+                prov,
+                history,
+                first_message,
+                active_system,
+                active_provider,
+                model,
+                session_name,
+            ):
+                return
+
+        while True:
+            try:
+                user_text = input("You: ").strip()
+            except EOFError:
+                console.print("\n[dim]Exited.[/dim]")
+                return
+            except KeyboardInterrupt:
+                console.print("\n[dim]Interrupted.[/dim]")
+                return
+
+            if not user_text:
+                continue
+
+            if user_text.lower() in {"/exit", "/quit", "q"}:
+                console.print("[dim]Exited.[/dim]")
+                return
+
+            if user_text.lower() == "/help":
+                console.print(
+                    "\n[bold]Chat mode commands:[/bold]\n"
+                    "  [cyan]/help[/cyan]     Show this message\n"
+                    "  [cyan]/history[/cyan]  Print the conversation so far\n"
+                    "  [cyan]/clear[/cyan]    Clear conversation history for this session\n"
+                    "  [cyan]/exit[/cyan]     Exit chat mode (also: /quit, q)\n"
+                )
+                continue
+
+            if user_text.lower() == "/history":
+                if not history:
+                    console.print("[dim]No messages yet.[/dim]")
+                else:
+                    console.print()
+                    for msg in history:
+                        role = msg["role"].upper()
+                        colour = "cyan" if msg["role"] == "user" else "green"
+                        console.print(f"[{colour}][{role}][/{colour}] {msg['content']}\n")
+                continue
+
+            if user_text.lower() == "/clear":
+                history.clear()
+                persist_history(history, session_name, active_provider)
+                console.print("[green]History cleared.[/green]")
+                continue
+
+            if not run_turn(
+                prov,
+                history,
+                user_text,
+                active_system,
+                active_provider,
+                model,
+                session_name,
+            ):
+                return
+        return
+
+    user_text = " ".join(message)
+    if not run_turn(
+        prov,
+        history,
+        user_text,
+        active_system,
+        active_provider,
+        model,
+        session_name,
+    ):
         sys.exit(0)
-    except Exception as e:
-        console.print(f"\n[red]Error:[/red] {e}")
-        sys.exit(1)
-
-    history.append({"role": "assistant", "content": full_response})
-    if session_name:
-        save_session(session_name, history, active_provider)
-    else:
-        save_history(active_provider, history)

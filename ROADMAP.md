@@ -7,7 +7,7 @@ A running list of planned improvements and future features.
 - [x] **Token/cost tracking** — per-message and cumulative totals, broken down by provider
 - [x] **Session listing improvements** — show provider used and first message as a preview
 - [x] **Session export** — dump a session to markdown or plain text
-- [ ] **Interactive mode** — `bot --chat` for a persistent REPL instead of one-shot messages
+- [x] **Interactive mode** — `bot --chat` for a persistent REPL instead of one-shot messages
 - [x] **System prompt override** — `--system` flag to replace the default prompt per query
 
 ## Developer Experience

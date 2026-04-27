@@ -339,6 +339,197 @@ def test_default_system_prompt_used_when_no_override(runner, mock_config):
         assert called_system == SYSTEM_PROMPT
 
 
+# --- Interactive mode tests ---
+
+
+def test_chat_mode_multiple_turns_saves_history_each_turn(runner, mock_config):
+    mock_provider = MagicMock()
+    mock_provider.stream_chat.side_effect = [iter(["first reply"]), iter(["second reply"])]
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_history", return_value=[]),
+        patch("bot.main.save_history") as mock_save,
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--chat"], input="hello\nworld\n/exit\n")
+        assert result.exit_code == 0
+        assert mock_provider.stream_chat.call_count == 2
+        assert mock_save.call_count == 2
+
+
+def test_chat_mode_with_session_uses_save_session(runner, mock_config):
+    mock_provider = MagicMock()
+    mock_provider.stream_chat.return_value = iter(["response"])
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_session", return_value=[]) as mock_load,
+        patch("bot.main.save_session") as mock_save,
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(
+            cli,
+            ["--session", "myproject", "--chat", "hello"],
+            input="/exit\n",
+        )
+        assert result.exit_code == 0
+        mock_load.assert_called_once_with("myproject")
+        mock_save.assert_called_once()
+
+
+def test_chat_mode_exit_without_message_does_not_call_provider(runner, mock_config):
+    mock_provider = MagicMock()
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_history", return_value=[]),
+        patch("bot.main.save_history") as mock_save,
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--chat"], input="/exit\n")
+        assert result.exit_code == 0
+        mock_provider.stream_chat.assert_not_called()
+        mock_save.assert_not_called()
+
+
+def test_chat_mode_system_prompt_override_is_used(runner, mock_config):
+    mock_provider = MagicMock()
+    mock_provider.stream_chat.return_value = iter(["response"])
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_history", return_value=[]),
+        patch("bot.main.save_history"),
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(
+            cli,
+            ["--chat", "--system", "You are concise", "hello"],
+            input="/exit\n",
+        )
+        assert result.exit_code == 0
+        _, called_system = mock_provider.stream_chat.call_args[0]
+        assert called_system == "You are concise"
+
+
+def test_chat_mode_keyboard_interrupt_at_prompt_exits_cleanly(runner, mock_config):
+    mock_provider = MagicMock()
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_history", return_value=[]),
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+        patch("builtins.input", side_effect=KeyboardInterrupt),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--chat"])
+        assert result.exit_code == 0
+        assert "Interrupted" in result.output
+
+
+def test_chat_mode_help_command_shows_commands(runner, mock_config):
+    mock_provider = MagicMock()
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_history", return_value=[]),
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--chat"], input="/help\n/exit\n")
+        assert result.exit_code == 0
+        assert "/history" in result.output
+        assert "/clear" in result.output
+        mock_provider.stream_chat.assert_not_called()
+
+
+def test_chat_mode_history_command_prints_messages(runner, mock_config):
+    existing = [
+        {"role": "user", "content": "what is ssh"},
+        {"role": "assistant", "content": "Secure Shell"},
+    ]
+    mock_provider = MagicMock()
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_history", return_value=existing),
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--chat"], input="/history\n/exit\n")
+        assert result.exit_code == 0
+        assert "what is ssh" in result.output
+        assert "Secure Shell" in result.output
+        mock_provider.stream_chat.assert_not_called()
+
+
+def test_chat_mode_clear_command_clears_history(runner, mock_config):
+    existing = [
+        {"role": "user", "content": "old message"},
+        {"role": "assistant", "content": "old reply"},
+    ]
+    mock_provider = MagicMock()
+    mock_provider.last_usage = None
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.load_history", return_value=existing),
+        patch("bot.main.save_history") as mock_save,
+        patch(
+            "bot.main.get_provider_config",
+            return_value=mock_config["providers"]["anthropic"],
+        ),
+        patch("bot.main.get_provider", return_value=mock_provider),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--chat"], input="/clear\n/exit\n")
+        assert result.exit_code == 0
+        assert "cleared" in result.output
+        # save_history called with empty history
+        mock_save.assert_called_once()
+        assert mock_save.call_args[0][1] == []
+
+
 # --- Export tests ---
 
 
