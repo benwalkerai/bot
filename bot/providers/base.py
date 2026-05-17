@@ -4,6 +4,18 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 
 
+class ProviderNetworkError(ConnectionError):
+    """Base class for provider network failures."""
+
+
+class ProviderTimeoutError(ProviderNetworkError):
+    """Raised when a provider request exceeds the configured timeout."""
+
+
+class ProviderConnectionError(ProviderNetworkError):
+    """Raised when a provider cannot be reached."""
+
+
 class BaseProvider(ABC):
     last_usage: dict | None = None
 

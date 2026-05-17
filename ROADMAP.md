@@ -25,13 +25,13 @@ A running list of planned improvements and future features.
 ## Security
 - [x] **Security baseline hardening** — lock down local storage permissions for `~/.bot` and session/history files to user-only access
 - [x] **Session name validation** — reject path traversal and unsafe filenames for `--session`, `--clear-session`, and `--export`
-- [ ] **Safe export paths** — add `--safe-output` mode (default on) to block writing exports outside allowed directories
-- [ ] **Secrets redaction in output** — optional `--redact-secrets` mode to mask common API key/token patterns in exports/history views
-- [ ] **Data retention controls** — add configurable retention policy and `--purge` command for old session/history/usage data
-- [ ] **Provider endpoint allowlist** — restrict custom `base_url` values to https and optionally to trusted hosts
-- [ ] **Network safety defaults** — request timeout, retry caps, and clearer network error classes for all providers
-- [ ] **Prompt safety guardrails** — optional local prompt-injection warnings for dangerous command suggestions before display
+- [x] **Safe export paths** — add `--safe-output` mode (default on) to block writing exports outside allowed directories
+- [x] **Secrets redaction in output** — optional `--redact-secrets` mode to mask common API key/token patterns in exports/history views
+- [x] **Data retention controls** — add configurable retention policy and `--purge` command for old session/history/usage data
+- [x] **Provider endpoint allowlist** — restrict custom `base_url` values to https and optionally to trusted hosts
+- [x] **Network safety defaults** — request timeout, retry caps, and clearer network error classes for all providers
+- [x] **Prompt safety guardrails** — optional local prompt-injection warnings for dangerous command suggestions before display
 - [ ] **Dependency and supply-chain checks** — add `uv lock` hygiene checks plus `pip-audit` in CI
-- [ ] **Security policy and disclosure docs** — add `SECURITY.md` with reporting process, supported versions, and response SLAs
-- [ ] **Structured security logging** — add local security event log (redacted) for export, clear, and config-changing actions
-- [ ] **Threat model and abuse tests** — maintain a lightweight threat model and add regression tests for traversal, malformed JSON, and hostile prompts
+- [x] **Security policy and disclosure docs** — add `SECURITY.md` with reporting process, supported versions, and response SLAs
+- [x] **Structured security logging** — add local security event log (redacted) for export, clear, and config-changing actions
+- [x] **Threat model and abuse tests** — maintain a lightweight threat model and add regression tests for traversal, malformed JSON, and hostile prompts

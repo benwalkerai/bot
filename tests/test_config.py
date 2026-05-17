@@ -29,6 +29,45 @@ def test_load_config_creates_default_if_missing(tmp_path):
         assert "openai" in config["providers"]
         assert "ollama" in config["providers"]
         assert "llamacpp" in config["providers"]
+        assert "security" in config
+        assert config["security"]["safe_output"] is True
+        assert config["security"]["retention_days"] == 30
+
+
+def test_get_provider_config_rejects_insecure_remote_http():
+    from bot.config import get_provider_config
+
+    config = {
+        "providers": {"openai": {"model": "gpt-4o-mini", "base_url": "http://example.com/v1"}},
+        "security": {"allow_insecure_http": False},
+    }
+
+    with pytest.raises(ValueError, match="Insecure base_url"):
+        get_provider_config(config, "openai")
+
+
+def test_get_provider_config_allows_local_http():
+    from bot.config import get_provider_config
+
+    config = {
+        "providers": {"ollama": {"model": "llama3", "base_url": "http://localhost:11434"}},
+        "security": {"allow_insecure_http": False},
+    }
+
+    result = get_provider_config(config, "ollama")
+    assert result["base_url"] == "http://localhost:11434"
+
+
+def test_get_provider_config_enforces_allowed_hosts():
+    from bot.config import get_provider_config
+
+    config = {
+        "providers": {"openai": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"}},
+        "security": {"allowed_hosts": ["api.groq.com"]},
+    }
+
+    with pytest.raises(ValueError, match="not in security.allowed_hosts"):
+        get_provider_config(config, "openai")
 
 
 def test_save_and_load_config_roundtrip(tmp_path):
@@ -70,6 +109,16 @@ def test_load_history_returns_empty_if_missing(tmp_path):
 
         result = load_history("anthropic")
         assert result == []
+
+
+def test_load_history_returns_empty_if_malformed(tmp_path):
+    bot_dir = tmp_path / ".bot"
+    bot_dir.mkdir()
+    (bot_dir / "history_anthropic.json").write_text("{not-json", encoding="utf-8")
+    with patch("bot.config.BOT_DIR", bot_dir):
+        from bot.config import load_history
+
+        assert load_history("anthropic") == []
 
 
 def test_clear_history_removes_file(tmp_path):
@@ -169,6 +218,74 @@ def test_saved_files_use_private_permissions_on_unix(tmp_path):
     assert stat.S_IMODE((sessions_dir / "secure.json").stat().st_mode) == 0o600
 
 
+def test_purge_old_data_deletes_expired_files(tmp_path):
+    import time
+
+    bot_dir = tmp_path / ".bot"
+    sessions_dir = bot_dir / "sessions"
+    old_ts = time.time() - (40 * 86400)
+
+    with (
+        patch("bot.config.BOT_DIR", bot_dir),
+        patch("bot.config.SESSIONS_DIR", sessions_dir),
+    ):
+        from bot.config import purge_old_data, save_history, save_session, save_usage
+
+        save_history("anthropic", [{"role": "user", "content": "old history"}])
+        save_usage("anthropic", {"input_tokens": 1, "output_tokens": 2, "cost_usd": 0.0})
+        save_session("old-session", [{"role": "user", "content": "old session"}], "anthropic")
+
+        save_history("openai", [{"role": "user", "content": "new history"}])
+        save_usage("openai", {"input_tokens": 3, "output_tokens": 4, "cost_usd": 0.0})
+        save_session("new-session", [{"role": "user", "content": "new session"}], "openai")
+
+        for path in [
+            bot_dir / "history_anthropic.json",
+            bot_dir / "usage_anthropic.json",
+            sessions_dir / "old-session.json",
+        ]:
+            os.utime(path, (old_ts, old_ts))
+
+        removed = purge_old_data(30)
+
+    assert removed == {"history": 1, "usage": 1, "sessions": 1}
+    assert not (bot_dir / "history_anthropic.json").exists()
+    assert not (bot_dir / "usage_anthropic.json").exists()
+    assert not (sessions_dir / "old-session.json").exists()
+    assert (bot_dir / "history_openai.json").exists()
+    assert (bot_dir / "usage_openai.json").exists()
+    assert (sessions_dir / "new-session.json").exists()
+
+
+def test_purge_old_data_rejects_negative_window():
+    from bot.config import purge_old_data
+
+    with pytest.raises(ValueError, match="zero or positive"):
+        purge_old_data(-1)
+
+
+def test_log_security_event_redacts_sensitive_values(tmp_path):
+    bot_dir = tmp_path / ".bot"
+    log_file = bot_dir / "security.log"
+    with (
+        patch("bot.config.BOT_DIR", bot_dir),
+        patch("bot.config.SECURITY_LOG_FILE", log_file),
+        patch.dict("os.environ", {"BOT_DISABLE_SECURITY_LOG": "0"}, clear=False),
+    ):
+        from bot.config import log_security_event
+
+        log_security_event(
+            "export",
+            token="sk-ant-1234567890abcdef",
+            nested={"password": "supersecret"},
+        )
+
+    payload = log_file.read_text().strip()
+    assert "sk-ant-1234567890abcdef" not in payload
+    assert "supersecret" not in payload
+    assert "[REDACTED]" in payload
+
+
 # --- Session tests ---
 
 
@@ -193,6 +310,16 @@ def test_load_session_returns_empty_if_missing(tmp_path):
 
         result = load_session("nonexistent")
         assert result == []
+
+
+def test_load_session_returns_empty_if_malformed(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    sessions_dir.mkdir(parents=True)
+    (sessions_dir / "broken.json").write_text("{broken", encoding="utf-8")
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import load_session
+
+        assert load_session("broken") == []
 
 
 def test_clear_session_removes_file(tmp_path):
@@ -338,6 +465,16 @@ def test_load_session_with_meta_returns_none_if_missing(tmp_path):
         assert load_session_with_meta("nonexistent") is None
 
 
+def test_load_session_with_meta_returns_none_if_malformed(tmp_path):
+    sessions_dir = tmp_path / ".bot" / "sessions"
+    sessions_dir.mkdir(parents=True)
+    (sessions_dir / "broken.json").write_text("{broken", encoding="utf-8")
+    with patch("bot.config.SESSIONS_DIR", sessions_dir):
+        from bot.config import load_session_with_meta
+
+        assert load_session_with_meta("broken") is None
+
+
 def test_load_session_with_meta_backward_compat(tmp_path):
     import json
 
@@ -358,6 +495,17 @@ def test_load_session_with_meta_backward_compat(tmp_path):
 
 def test_load_usage_returns_zeros_if_missing(tmp_path):
     bot_dir = tmp_path / ".bot"
+    with patch("bot.config.BOT_DIR", bot_dir):
+        from bot.config import load_usage
+
+        data = load_usage("anthropic")
+        assert data == {"input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}
+
+
+def test_load_usage_returns_zeros_if_malformed(tmp_path):
+    bot_dir = tmp_path / ".bot"
+    bot_dir.mkdir()
+    (bot_dir / "usage_anthropic.json").write_text("{bad", encoding="utf-8")
     with patch("bot.config.BOT_DIR", bot_dir):
         from bot.config import load_usage
 

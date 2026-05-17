@@ -132,6 +132,9 @@ bot --set-model claude-opus-4-5
 # View conversation history
 bot --history
 
+# Purge data older than the configured retention window
+bot --purge
+
 # Clear history
 bot --clear
 
@@ -140,6 +143,12 @@ bot --providers
 
 # Override the system prompt for one query
 bot --system "You are a Python expert" explain decorators
+
+# Redact likely secrets in history/export output
+bot --history --redact-secrets
+
+# Export outside safe directories (disabled by default for safety)
+bot --export myproject --output /tmp/myproject.md --unsafe-output
 ```
 
 ---
@@ -282,12 +291,38 @@ Config and history live in `~/.bot/`, with user-only file permissions on Linux a
 
 History is capped at 50 message pairs per provider. You can edit `~/.bot/config.json` directly to customise models, add providers, or set custom base URLs.
 
+Security-related defaults in `config.json`:
+
+```json
+{
+  "security": {
+    "safe_output": true,
+    "redact_secrets": false,
+    "warn_dangerous_commands": true,
+    "allowed_export_dirs": ["."],
+    "allowed_hosts": [],
+    "allow_insecure_http": false,
+    "request_timeout_seconds": 30,
+    "max_retries": 2,
+    "retention_days": 30
+  }
+}
+```
+
 ---
 
 ## Security
 
 - **File permissions** — `~/.bot/` and all data files are created with user-only permissions (`700`/`600`) on Linux and macOS so other users on the same machine cannot read your history, API keys, or session data.
 - **Session name validation** — session names are validated against a strict allowlist (letters, numbers, `.`, `_`, `-`) to prevent path traversal attacks. Names like `../etc/passwd` are rejected at the CLI boundary.
+- **Safe exports** — `--output` writes are restricted to allowed directories by default; use `--unsafe-output` to bypass for one command.
+- **Secrets redaction** — use `--redact-secrets` to mask common key/token patterns in `--history` and `--export` output.
+- **Network guardrails** — provider `base_url` values are validated (https by default for non-local hosts), with configurable host allowlists, timeouts, and retry limits.
+- **Outbound warning guardrail** — bot warns before printing responses that appear to contain dangerous shell command suggestions.
+- **Retention controls** — use `--purge` to delete history, usage, and session files older than the configured retention window.
+- **Security log** — export, clear, purge, and config changes are recorded in a local redacted JSONL audit log at `~/.bot/security.log`.
+- **Security policy** — see [SECURITY.md](SECURITY.md) for reporting guidance and supported-version details.
+- **Threat model** — see [THREAT_MODEL.md](THREAT_MODEL.md) for threat boundaries, mitigations, and residual risks.
 - **API keys** — keys are never written to disk; they are read only from environment variables at runtime.
 
 ---

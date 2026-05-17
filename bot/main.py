@@ -23,6 +23,8 @@ bot --session myproject --chat
 
 import sys
 from datetime import datetime
+from pathlib import Path
+import re
 
 import click
 from rich.console import Console
@@ -38,12 +40,15 @@ from .config import (
     load_session,
     load_session_with_meta,
     load_usage,
+    log_security_event,
     save_config,
     save_history,
     save_session,
+    purge_old_data,
     validate_session_name,
 )
 from .providers import PROVIDERS, get_provider
+from .providers.base import ProviderConnectionError, ProviderTimeoutError
 
 console = Console()
 
@@ -71,8 +76,75 @@ so the user can follow along one step at a time. If the user says things like 's
 'next?' they're continuing from the previous response - refer to context and continue.
 """
 
+SECRET_PATTERNS = [
+    re.compile(r"\bsk-[A-Za-z0-9_-]{10,}\b"),
+    re.compile(r"\bsk-ant-[A-Za-z0-9_-]{10,}\b"),
+    re.compile(r"\bghp_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bAIza[0-9A-Za-z\\-_]{20,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"\b(?:api[_-]?key|token|secret|password)\s*[:=]\s*['\"]?[^\s'\"]{8,}['\"]?", re.IGNORECASE),
+]
 
-def format_export(name: str, history: list[dict], provider: str | None, fmt: str) -> str:
+DANGEROUS_COMMAND_PATTERNS = [
+    re.compile(r"\brm\s+-rf\s+/"),
+    re.compile(r"\bdd\s+if=.*\s+of=/dev/"),
+    re.compile(r"\bmkfs(\.[a-z0-9]+)?\b", re.IGNORECASE),
+    re.compile(r"\bshutdown\b|\breboot\b", re.IGNORECASE),
+    re.compile(r"\bdel\s+/[sf].*\\\\"),
+    re.compile(r"\bformat\s+[A-Za-z]:", re.IGNORECASE),
+    re.compile(r"\bcurl\b.*\|\s*(sh|bash|zsh|powershell|pwsh)\b", re.IGNORECASE),
+    re.compile(r"\bInvoke-Expression\b|\bIEX\b", re.IGNORECASE),
+]
+
+
+def redact_text(text: str) -> str:
+    redacted = text
+    for pattern in SECRET_PATTERNS:
+        redacted = pattern.sub("[REDACTED]", redacted)
+    return redacted
+
+
+def looks_dangerous(text: str) -> bool:
+    return any(pattern.search(text) for pattern in DANGEROUS_COMMAND_PATTERNS)
+
+
+def _resolve_allowed_export_dirs(config: dict) -> list[Path]:
+    security = config.get("security", {})
+    configured = security.get("allowed_export_dirs", []) or [str(Path.cwd())]
+    resolved: list[Path] = []
+    for path_str in configured:
+        p = Path(path_str).expanduser()
+        if not p.is_absolute():
+            p = (Path.cwd() / p).resolve()
+        else:
+            p = p.resolve()
+        resolved.append(p)
+    return resolved
+
+
+def _validate_export_output_path(output_file: str, config: dict) -> None:
+    target = Path(output_file).expanduser()
+    if not target.is_absolute():
+        target = (Path.cwd() / target).resolve()
+    else:
+        target = target.resolve()
+
+    allowed_dirs = _resolve_allowed_export_dirs(config)
+    parent = target.parent
+    if not any(parent.is_relative_to(allowed) for allowed in allowed_dirs):
+        allowed = ", ".join(str(p) for p in allowed_dirs)
+        raise ValueError(
+            f"Output path '{target}' is outside allowed directories: {allowed}"
+        )
+
+
+def format_export(
+    name: str,
+    history: list[dict],
+    provider: str | None,
+    fmt: str,
+    redact: bool = False,
+) -> str:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
     if fmt == "markdown":
         lines = [f"# Session: {name}"]
@@ -81,7 +153,8 @@ def format_export(name: str, history: list[dict], provider: str | None, fmt: str
         lines += [f"Exported: {ts}", "", "---", ""]
         for msg in history:
             role = "User" if msg["role"] == "user" else "Assistant"
-            lines += [f"**{role}:** {msg['content']}", ""]
+            content = redact_text(msg["content"]) if redact else msg["content"]
+            lines += [f"**{role}:** {content}", ""]
         return "\n".join(lines).rstrip() + "\n"
     else:  # text
         lines = [f"Session: {name}"]
@@ -90,7 +163,8 @@ def format_export(name: str, history: list[dict], provider: str | None, fmt: str
         lines += [f"Exported: {ts}", "", "---", ""]
         for msg in history:
             role = "USER" if msg["role"] == "user" else "ASSISTANT"
-            lines += [f"{role}: {msg['content']}", ""]
+            content = redact_text(msg["content"]) if redact else msg["content"]
+            lines += [f"{role}: {content}", ""]
         return "\n".join(lines).rstrip() + "\n"
 
 
@@ -120,6 +194,7 @@ def run_turn(
     active_provider: str,
     model: str,
     session_name: str | None,
+    warn_dangerous: bool,
 ) -> bool:
     """Run one chat turn. Returns False if interrupted mid-stream."""
     history.append({"role": "user", "content": user_text})
@@ -128,9 +203,14 @@ def run_turn(
     try:
         console.print()
         for chunk in prov.stream_chat(history, active_system):
-            print(chunk, end="", flush=True)
             full_response += chunk
-        print("\n")
+        if warn_dangerous and looks_dangerous(full_response):
+            console.print(
+                "[yellow]Warning:[/yellow] Potentially dangerous command suggestions detected. "
+                "Review carefully before running anything."
+            )
+        print(full_response)
+        print()
         if prov.last_usage:
             in_tok = prov.last_usage["input_tokens"]
             out_tok = prov.last_usage["output_tokens"]
@@ -138,6 +218,12 @@ def run_turn(
             cost_str = f" · ~${cost:.4f}" if cost is not None else ""
             console.print(f"[dim]↑ {in_tok:,} in · ↓ {out_tok:,} out{cost_str}[/dim]")
             accumulate_usage(active_provider, in_tok, out_tok, cost or 0.0)
+    except ProviderTimeoutError as e:
+        console.print(f"\n[red]Network timeout:[/red] {e}")
+        sys.exit(1)
+    except ProviderConnectionError as e:
+        console.print(f"\n[red]Connection error:[/red] {e}")
+        sys.exit(1)
     except ConnectionError as e:
         console.print(f"\n[red]Connection error:[/red] {e}")
         sys.exit(1)
@@ -206,6 +292,31 @@ def run_turn(
     help="Write export to this file instead of stdout.",
 )
 @click.option(
+    "--safe-output/--unsafe-output",
+    "safe_output",
+    default=None,
+    help="Restrict --output paths to allowed directories (default from config).",
+)
+@click.option(
+    "--redact-secrets/--no-redact-secrets",
+    "redact_secrets_flag",
+    default=None,
+    help="Mask likely secrets in --history and --export output (default from config).",
+)
+@click.option(
+    "--purge",
+    "do_purge",
+    is_flag=True,
+    help="Delete history, usage, and session data older than the retention window.",
+)
+@click.option(
+    "--days",
+    "purge_days",
+    type=int,
+    default=None,
+    help="Retention window in days for --purge (defaults to config).",
+)
+@click.option(
     "--usage",
     "show_usage",
     is_flag=True,
@@ -232,10 +343,27 @@ def cli(
     export_session: str | None,
     export_format: str,
     output_file: str | None,
+    safe_output: bool | None,
+    redact_secrets_flag: bool | None,
+    do_purge: bool,
+    purge_days: int | None,
     show_usage: bool,
     chat_mode: bool,
 ) -> None:
     config = load_config()
+    security = config.get("security", {})
+    safe_output_enabled = (
+        bool(security.get("safe_output", True))
+        if safe_output is None
+        else safe_output
+    )
+    redact_output = (
+        bool(security.get("redact_secrets", False))
+        if redact_secrets_flag is None
+        else redact_secrets_flag
+    )
+    warn_dangerous = bool(security.get("warn_dangerous_commands", True))
+    retention_days = int(security.get("retention_days", 30))
 
     for candidate in (session_name, clear_session_name, export_session):
         if candidate is None:
@@ -269,6 +397,21 @@ def cli(
         console.print()
         return
 
+    if do_purge:
+        days = retention_days if purge_days is None else purge_days
+        try:
+            removed = purge_old_data(days)
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        console.print(
+            "[green]Purged old data:[/green] "
+            f"{removed['history']} history, {removed['usage']} usage, {removed['sessions']} sessions "
+            f"older than {days} day(s)."
+        )
+        log_security_event("purge", retention_days=days, removed=removed)
+        return
+
     if export_session:
         meta = load_session_with_meta(export_session)
         if meta is None:
@@ -277,13 +420,40 @@ def cli(
         if not meta["history"]:
             console.print(f"[yellow]Session '{export_session}' is empty.[/yellow]")
             return
-        content = format_export(export_session, meta["history"], meta["provider"], export_format)
+        content = format_export(
+            export_session,
+            meta["history"],
+            meta["provider"],
+            export_format,
+            redact=redact_output,
+        )
         if output_file:
-            from pathlib import Path
+            if safe_output_enabled:
+                try:
+                    _validate_export_output_path(output_file, config)
+                except ValueError as e:
+                    console.print(f"[red]Error:[/red] {e}")
+                    sys.exit(1)
             Path(output_file).write_text(content, encoding="utf-8")
             console.print(f"[green]Exported '{export_session}' to {output_file}[/green]")
+            log_security_event(
+                "export",
+                session=export_session,
+                format=export_format,
+                output=str(output_file),
+                redacted=redact_output,
+                safe_output=safe_output_enabled,
+            )
         else:
             print(content, end="")
+            log_security_event(
+                "export",
+                session=export_session,
+                format=export_format,
+                output="stdout",
+                redacted=redact_output,
+                safe_output=safe_output_enabled,
+            )
         return
 
     if list_sessions_flag:
@@ -307,6 +477,7 @@ def cli(
     if clear_session_name:
         clear_session(clear_session_name)
         console.print(f"[green]Session '{clear_session_name}' cleared.[/green]")
+        log_security_event("clear_session", session=clear_session_name)
         return
 
     if list_providers:
@@ -330,6 +501,7 @@ def cli(
         config["provider"] = set_provider
         save_config(config)
         console.print(f"[green]Default provider set to '{set_provider}'.[/green]")
+        log_security_event("set_provider", provider=set_provider)
         return
 
     if set_model:
@@ -337,6 +509,7 @@ def cli(
         config["providers"][active]["model"] = set_model
         save_config(config)
         console.print(f"[green]Model for '{active}' set to '{set_model}'.[/green]")
+        log_security_event("set_model", provider=active, model=set_model)
         return
 
     active_provider = resolve_provider(config, provider)
@@ -344,6 +517,7 @@ def cli(
     if do_clear:
         clear_history(active_provider)
         console.print(f"[green]History cleared for '{active_provider}'.[/green]")
+        log_security_event("clear_history", provider=active_provider)
         return
 
     if show_history:
@@ -355,7 +529,8 @@ def cli(
         for msg in history:
             role = msg["role"].upper()
             colour = "cyan" if msg["role"] == "user" else "green"
-            console.print(f"[{colour}][{role}][/{colour}] {msg['content']}\n")
+            content = redact_text(msg["content"]) if redact_output else msg["content"]
+            console.print(f"[{colour}][{role}][/{colour}] {content}\n")
         return
 
     if not chat_mode and not message:
@@ -391,6 +566,7 @@ def cli(
                 active_provider,
                 model,
                 session_name,
+                warn_dangerous,
             ):
                 return
 
@@ -429,7 +605,8 @@ def cli(
                     for msg in history:
                         role = msg["role"].upper()
                         colour = "cyan" if msg["role"] == "user" else "green"
-                        console.print(f"[{colour}][{role}][/{colour}] {msg['content']}\n")
+                        content = redact_text(msg["content"]) if redact_output else msg["content"]
+                        console.print(f"[{colour}][{role}][/{colour}] {content}\n")
                 continue
 
             if user_text.lower() == "/clear":
@@ -446,6 +623,7 @@ def cli(
                 active_provider,
                 model,
                 session_name,
+                warn_dangerous,
             ):
                 return
         return
@@ -459,5 +637,6 @@ def cli(
         active_provider,
         model,
         session_name,
+        warn_dangerous,
     ):
         sys.exit(0)
