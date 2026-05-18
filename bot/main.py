@@ -21,10 +21,10 @@ bot --chat
 bot --session myproject --chat
 """
 
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
-import re
 
 import click
 from rich.console import Console
@@ -41,10 +41,10 @@ from .config import (
     load_session_with_meta,
     load_usage,
     log_security_event,
+    purge_old_data,
     save_config,
     save_history,
     save_session,
-    purge_old_data,
     validate_session_name,
 )
 from .providers import PROVIDERS, get_provider

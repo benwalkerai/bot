@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Features
+
+- Enhance security features and improve export functionality
+
+### Miscellaneous
+
+- Bump pytest from 9.0.2 to 9.0.3 (#11)
+
+## [0.3.0] - 2026-04-27
+
 ### Documentation
 
 - Add contributing guidelines and release process to README
@@ -14,10 +24,12 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Implement usage tracking and export functionality; update roadmap
 - Add interactive chat mode with slash commands
+- Add interactive mode, security hardening, and docs
 
 ### Miscellaneous
 
 - Add changelog generation and automatic version bumping
+- Bump version to 0.3.0
 
 ## [0.2.1] - 2026-04-11
 
