@@ -6,9 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-05-20
+
 ### Features
 
 - Enhance security features and improve export functionality
+
+### Security
+
+- Pin transitive `idna` to `>=3.15` to address the ReDoS advisory in older `idna` versions.
+
+### CI
+
+- Build Windows and Linux installers automatically on `main` and pull requests.
+- Publish Windows and Linux installer artifacts to GitHub Releases on version tags.
 
 ### Miscellaneous
 

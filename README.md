@@ -18,6 +18,70 @@ To create a standalone Windows EXE and one-click installer:
 
 **Note:** The EXE includes Python and all dependencies—no Python install required for users.
 
+## Building Linux .deb and .rpm Packages
+
+`nfpm` works cross-platform, so you can build Linux packages from Windows, macOS, or Linux without a VM.
+
+### 1. Install nfpm (one-time)
+
+**Windows (PowerShell)** — choose one:
+
+```powershell
+# Scoop
+scoop install nfpm
+
+# Chocolatey
+choco install nfpm
+
+# winget
+winget install GoReleaser.nfpm
+
+# Direct download (no package manager required)
+$tag = "v2.43.2"
+$url = "https://github.com/goreleaser/nfpm/releases/download/$tag/nfpm_Windows_x86_64.zip"
+Invoke-WebRequest $url -OutFile "$env:TEMP\nfpm.zip"
+Expand-Archive "$env:TEMP\nfpm.zip" -DestinationPath "$env:LOCALAPPDATA\nfpm" -Force
+$env:PATH += ";$env:LOCALAPPDATA\nfpm"  # add permanently via System Properties > Environment Variables
+```
+
+**Linux / macOS:**
+
+```bash
+# Homebrew
+brew install nfpm
+
+# Direct binary
+curl -sfL https://install.goreleaser.com/github.com/goreleaser/nfpm.sh | sh
+```
+
+### 2. Build the packages
+
+**Windows (PowerShell):**
+
+```powershell
+.\build_linux_packages.ps1
+```
+
+**Linux / macOS:**
+
+```bash
+./build_linux_packages.sh
+```
+
+This produces:
+
+- `dist/linux/inzen-bot_<version>_<arch>.deb`
+- `dist/linux/inzen-bot_<version>_<arch>.rpm`
+
+The packages install the standalone binary under `/opt/inzen-cli-bot/`, expose both `bot` and `inzen_cli_bot` on the system `PATH`, include the project docs under `/usr/share/doc/inzen-cli-bot/`, and print a post-install reminder to run `bot --setup`.
+
+On Git tags matching `v*`, GitHub Actions builds and attaches all release installers to the matching GitHub Release automatically:
+
+- Windows standalone EXE
+- Windows installer EXE
+- Linux `.deb`
+- Linux `.rpm`
+
 ---
 
 ![Inzen CLI Bot one-shot response with token usage footer](screenshots/screenshot1.png)

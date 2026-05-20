@@ -75,6 +75,45 @@ Build installer:
 - Open `installer.iss` in Inno Setup
 - Compile to produce installer EXE
 
+## Linux packaging
+
+`nfpm` works cross-platform, so you can build Linux packages from Windows too.
+
+**Windows (PowerShell):**
+
+```powershell
+# Install nfpm once (pick any method):
+scoop install nfpm          # Scoop
+choco install nfpm          # Chocolatey
+winget install GoReleaser.nfpm
+
+# Build packages:
+.\build_linux_packages.ps1
+```
+
+**Linux / macOS:**
+
+```bash
+# Install nfpm once:
+brew install nfpm           # Homebrew
+
+# Build packages:
+./build_linux_packages.sh
+```
+
+Requirements: `uv`, `pyinstaller`, `nfpm`.
+
+Outputs are written to `dist/linux/` as both `.deb` and `.rpm` packages.
+
+## Release assets
+
+On tagged releases (`v*`), GitHub Actions builds and publishes all installer assets to the matching GitHub Release:
+
+- `inzen_cli_bot.exe`
+- Windows installer `.exe`
+- Linux `.deb`
+- Linux `.rpm`
+
 ## Security and secrets
 
 - Never commit real API keys or secrets.

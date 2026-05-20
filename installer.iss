@@ -1,12 +1,20 @@
 ; installer.iss - Inno Setup script for Inzen CLI Bot
 ; This script creates a Windows installer for your app
 
+#ifndef MyAppVersion
+	#define MyAppVersion "1.0.0"
+#endif
+
+#ifndef MyOutputBaseFilename
+	#define MyOutputBaseFilename "inzen_cli_bot_installer"
+#endif
+
 [Setup]
 AppName=Inzen CLI Bot
-AppVersion=1.0
+AppVersion={#MyAppVersion}
 DefaultDirName={autopf}\InzenCLIBot
 DefaultGroupName=Inzen CLI Bot
-OutputBaseFilename=inzen_cli_bot_installer
+OutputBaseFilename={#MyOutputBaseFilename}
 Compression=lzma
 SolidCompression=yes
 ChangesEnvironment=yes

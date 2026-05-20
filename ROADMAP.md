@@ -18,9 +18,9 @@ A running list of planned improvements and future features.
 
 ## Distribution
 
-- [ ] **Homebrew formula** — so Mac users can `brew install inzen-bot`
-- [ ] **Windows installer / winget package** — native Windows distribution
-- [ ] **Docker image** — for containerised or server environments
+- [ ] **MacOS installer** — so Mac users can run the bot in terminal
+- [x] **Windows installer / winget package** — native Windows distribution
+- [x] ** Linux packages** - so Linux users can download and install
 
 ## Security
 - [x] **Security baseline hardening** — lock down local storage permissions for `~/.bot` and session/history files to user-only access
@@ -35,3 +35,7 @@ A running list of planned improvements and future features.
 - [x] **Security policy and disclosure docs** — add `SECURITY.md` with reporting process, supported versions, and response SLAs
 - [x] **Structured security logging** — add local security event log (redacted) for export, clear, and config-changing actions
 - [x] **Threat model and abuse tests** — maintain a lightweight threat model and add regression tests for traversal, malformed JSON, and hostile prompts
+
+## Automation
+- [x] **Automate package creation**
+- [x] **Automate package updates in GitHub**

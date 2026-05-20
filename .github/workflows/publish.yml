@@ -26,6 +26,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: Validate PyPI token
+        run: |
+          if [ -z "${{ secrets.PYPI_API_TOKEN }}" ]; then
+            echo "PYPI_API_TOKEN is not configured."
+            exit 1
+          fi
+
       - name: Build
         run: uv build
 

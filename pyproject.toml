@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inzen-bot"
-version = "0.3.3"
+version = "0.3.4"
 description = "Multi-provider AI chatbot for the terminal"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -39,6 +39,12 @@ dev = ["pytest", "pytest-mock", "ruff"]
 [tool.uv]
 package = true
 
+# Security constraint: idna < 3.15 is vulnerable to ReDoS (CVE-2024-3651 incomplete fix).
+# This overrides the transitive version pulled in by anthropic, openai, twine, etc.
+constraint-dependencies = [
+    "idna>=3.15",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["bot*"]
@@ -55,7 +61,7 @@ dev = [
 ]
 
 [tool.bumpversion]
-current_version = "0.3.3"
+current_version = "0.3.4"
 commit = true
 tag = true
 tag_name = "v{new_version}"
