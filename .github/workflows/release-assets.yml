@@ -120,4 +120,4 @@ jobs:
           files: |
             release-assets/linux/*.deb
             release-assets/linux/*.rpm
-            release-assets/windows/*.exe
+            release-assets/windows/**/*.exe
