@@ -55,12 +55,12 @@ def _print_next_steps(config: dict, use_keyring: bool) -> None:
     ]
 
     console.print("\n[bold]What's next[/bold]")
-    console.print(f"  1. Start chatting: inzen_bot --provider {default_provider} hello")
-    console.print("  2. See configured providers: inzen_bot --providers")
-    console.print("  3. Re-run setup any time: inzen_bot --setup")
+    console.print(f"  1. Start chatting: bot --provider {default_provider} hello")
+    console.print("  2. See configured providers: bot --providers")
+    console.print("  3. Re-run setup any time: bot --setup")
 
     if use_keyring:
-        console.print("  4. Manage keys: inzen_bot --credentials-list")
+        console.print("  4. Manage keys: bot --credentials-list")
     else:
         console.print("  4. Add API keys with environment variables, then open a new terminal")
 
@@ -73,7 +73,7 @@ def run_setup_wizard() -> None:
     providers = config.setdefault("providers", {})
     use_keyring = keyring_is_available()
 
-    console.print("[bold]bot setup wizard[/bold]")
+    console.print("[bold]Inzen CLI Bot setup wizard[/bold]")
     if use_keyring:
         console.print("[green]Secure storage:[/green] OS keyring detected.")
     else:

@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Security fixes are provided for the latest released version of inzen-bot.
+Security fixes are provided for the latest released version of Inzen CLI Bot.
 
 ## Reporting a Vulnerability
 

@@ -1,5 +1,5 @@
 """
-bot - multi-provider chatbot for the terminal.
+Inzen CLI Bot - multi-provider chatbot for the terminal.
 
 Usage examples:
 bot what is the fdisk command to list drives

@@ -1,6 +1,6 @@
 # Threat Model (Lightweight)
 
-This document captures the primary threats for inzen-bot and the current mitigations.
+This document captures the primary threats for Inzen CLI Bot and the current mitigations.
 
 ## Scope
 

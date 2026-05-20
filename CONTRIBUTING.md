@@ -1,4 +1,4 @@
-# Contributing to inzen-bot
+# Contributing to Inzen CLI Bot
 
 Thanks for your interest in contributing.
 

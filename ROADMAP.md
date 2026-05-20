@@ -1,4 +1,4 @@
-# Inzen-Bot Roadmap
+# Inzen CLI Bot Roadmap
 
 A running list of planned improvements and future features.
 

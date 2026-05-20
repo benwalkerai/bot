@@ -15,7 +15,6 @@ ChangesEnvironment=yes
 ; Main executable
 Source: "dist\inzen_cli_bot.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; CLI aliases for compatibility and convenience
-Source: "dist\inzen_cli_bot.exe"; DestDir: "{app}"; DestName: "inzen_bot.exe"; Flags: ignoreversion
 Source: "dist\inzen_cli_bot.exe"; DestDir: "{app}"; DestName: "bot.exe"; Flags: ignoreversion
 ; Optional: include README and .env.example
 Source: "README.md"; DestDir: "{app}"; Flags: isreadme

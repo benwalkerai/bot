@@ -1,4 +1,4 @@
-# inzen-bot
+# Inzen CLI Bot
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/inzen-bot?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/inzen-bot)
 [![PyPI Version](https://img.shields.io/pypi/v/inzen-bot)](https://pypi.org/project/inzen-bot/)
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)
@@ -20,7 +20,7 @@ To create a standalone Windows EXE and one-click installer:
 
 ---
 
-![inzen-bot one-shot response with token usage footer](screenshots/screenshot1.png)
+![Inzen CLI Bot one-shot response with token usage footer](screenshots/screenshot1.png)
 
 No browser. No switching apps. Just ask and keep working.
 
@@ -98,7 +98,7 @@ This wizard will:
 
 ### 2. Or set API keys manually
 
-inzen-bot reads your API keys from environment variables.
+Inzen CLI Bot reads your API keys from environment variables.
 
 **Linux / macOS** — add to your `~/.bashrc` or `~/.zshrc`:
 

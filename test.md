@@ -1,4 +1,4 @@
-# Manual Test Plan — inzen-bot
+# Manual Test Plan — Inzen CLI Bot
 
 Run through each section before tagging and publishing a new release. Tick each item as you go.
 
