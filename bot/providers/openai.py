@@ -1,8 +1,8 @@
 """OpenAI provider - also works for Groq, Together, etc. via base_url."""
 
-import os
 from collections.abc import Iterator
 
+from ..credentials import get_api_key
 from .base import BaseProvider, ProviderConnectionError, ProviderTimeoutError
 
 
@@ -14,10 +14,10 @@ class OpenAIProvider(BaseProvider):
             raise ImportError("Run: uv add openai")
 
         api_key_env = config.get("api_key_env", "OPENAI_API_KEY")
-        api_key = os.environ.get(api_key_env)
+        api_key = get_api_key("openai", api_key_env)
         if not api_key:
             raise OSError(
-                f"Missing API key. Set the {api_key_env} environment variable."
+                f"Missing API key. Run 'bot --setup' or set the {api_key_env} environment variable."
             )
         kwargs = {"api_key": api_key}
         if "base_url" in config:

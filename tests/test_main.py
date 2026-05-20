@@ -44,6 +44,59 @@ def test_no_args_shows_usage(runner, mock_config):
         assert "Usage" in result.output
 
 
+def test_setup_runs_wizard(runner):
+    with patch("bot.main.run_setup_wizard") as mock_setup:
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--setup"])
+        assert result.exit_code == 0
+        mock_setup.assert_called_once()
+
+
+def test_credentials_list_shows_statuses(runner, mock_config):
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.has_stored_api_key", side_effect=lambda name: name == "anthropic"),
+        patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=False),
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--credentials-list"])
+        assert result.exit_code == 0
+        assert "anthropic" in result.output
+        assert "stored in keyring" in result.output
+        assert "set via env" in result.output
+
+
+def test_credentials_update_stores_key(runner, mock_config):
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.keyring_is_available", return_value=True),
+        patch("bot.main.set_api_key") as mock_set,
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(
+            cli,
+            ["--credentials-update", "anthropic"],
+            input="new-secret\nnew-secret\n",
+        )
+        assert result.exit_code == 0
+        mock_set.assert_called_once_with("anthropic", "new-secret")
+
+
+def test_credentials_remove_deletes_key(runner, mock_config):
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.delete_api_key", return_value=True) as mock_delete,
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--credentials-remove", "anthropic"])
+        assert result.exit_code == 0
+        mock_delete.assert_called_once_with("anthropic")
+
+
 def test_list_providers(runner, mock_config):
     with patch("bot.main.load_config", return_value=mock_config):
         from bot.main import cli

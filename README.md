@@ -1,22 +1,41 @@
 # inzen-bot
-
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/inzen-bot?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/inzen-bot)
 [![PyPI Version](https://img.shields.io/pypi/v/inzen-bot)](https://pypi.org/project/inzen-bot/)
 ![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![CI](https://github.com/benwalkerai/bot/actions/workflows/ci.yml/badge.svg)](https://github.com/benwalkerai/bot/actions/workflows/ci.yml)
+---
 
-**A multi-provider AI chatbot for the terminal.** Chat with Claude, GPT-4, Ollama, or llama.cpp without leaving your shell — with persistent conversation history, named sessions, token cost tracking, and a full interactive REPL mode.
+## Building a Windows Executable & Installer
+
+To create a standalone Windows EXE and one-click installer:
+
+1. **Build the EXE:**
+  - Install PyInstaller: `pip install pyinstaller`
+  - Run the build script: `build_exe.bat`
+  - The EXE will appear in the `dist/` folder.
+2. **Create an Installer (optional):**
+  - Use [Inno Setup](https://jrsoftware.org/isinfo.php) or [NSIS](https://nsis.sourceforge.io/) to package the EXE and any required files.
+  - See `installer.iss.example` for a sample Inno Setup script (if present).
+
+**Note:** The EXE includes Python and all dependencies—no Python install required for users.
+
+---
 
 ![inzen-bot one-shot response with token usage footer](screenshots/screenshot1.png)
 
 No browser. No switching apps. Just ask and keep working.
 
----
 
 ## Contents
 
-- [Features](#features)
+
+---
+
+## Security & Secrets
+
+- **Never commit real API keys or secrets.** Only `.env.example` should be public.
+- The `.gitignore` excludes `.env`, `.venv/`, and build artifacts by default.
+
+---
 - [Install](#install)
 - [Setup](#setup)
 - [Usage](#usage)
@@ -29,13 +48,17 @@ No browser. No switching apps. Just ask and keep working.
 - [Requirements](#requirements)
 - [Contributing](#contributing)
 - [Releasing to PyPI](#releasing-to-pypi)
-
 ---
 
 ## Features
 
-- **Multi-provider** — Claude, GPT-4, Ollama, llama.cpp, Groq, and any OpenAI-compatible endpoint
-- **Persistent history** — follow-up with `bot step 2?` and it knows exactly what you mean
+---
+
+## Code Style
+
+- Use [ruff](https://docs.astral.sh/ruff/) for linting: `uv run ruff check .`
+- Use [black](https://black.readthedocs.io/) for formatting: `uv run black .`
+- Add type hints to all functions.
 - **Named sessions** — keep separate threads for different projects, all stored locally
 - **Interactive REPL** — `bot --chat` for a persistent conversation without re-typing flags
 - **Token & cost tracking** — per-message footer and a `bot --usage` summary table across all providers
@@ -60,7 +83,20 @@ uv add inzen-bot
 
 ## Setup
 
-### 1. Set your API key
+### 1. Run interactive setup (recommended)
+
+```bash
+bot --setup
+```
+
+This wizard will:
+
+- Ask which providers you want to use
+- Ask for model/base URL where needed
+- Store API keys securely in your OS keyring (when available)
+- Save provider settings to `~/.bot/config.json`
+
+### 2. Or set API keys manually
 
 inzen-bot reads your API keys from environment variables.
 
@@ -122,6 +158,16 @@ Common flags:
 ```bash
 # Use a specific provider for one query
 bot --provider openai explain RAID levels
+
+# Run setup wizard again
+bot --setup
+
+# See API key status (keyring/env)
+bot --credentials-list
+
+# Update or remove a stored API key
+bot --credentials-update anthropic
+bot --credentials-remove anthropic
 
 # Switch default provider permanently
 bot --set-provider ollama

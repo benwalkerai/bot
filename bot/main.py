@@ -23,6 +23,7 @@ bot --session myproject --chat
 
 import re
 import sys
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -49,6 +50,8 @@ from .config import (
 )
 from .providers import PROVIDERS, get_provider
 from .providers.base import ProviderConnectionError, ProviderTimeoutError
+from .setup import run_setup_wizard
+from .credentials import delete_api_key, has_stored_api_key, keyring_is_available, set_api_key
 
 console = Console()
 
@@ -328,6 +331,30 @@ def run_turn(
     is_flag=True,
     help="Start interactive chat mode (persistent REPL).",
 )
+@click.option(
+    "--setup",
+    "run_setup",
+    is_flag=True,
+    help="Run interactive setup for providers and API keys.",
+)
+@click.option(
+    "--credentials-list",
+    "credentials_list",
+    is_flag=True,
+    help="List API key status for configured providers.",
+)
+@click.option(
+    "--credentials-update",
+    "credentials_update",
+    default=None,
+    help="Update API key for a provider (stored in OS keyring).",
+)
+@click.option(
+    "--credentials-remove",
+    "credentials_remove",
+    default=None,
+    help="Remove stored API key for a provider from OS keyring.",
+)
 def cli(
     message: tuple,
     provider: str | None,
@@ -349,8 +376,85 @@ def cli(
     purge_days: int | None,
     show_usage: bool,
     chat_mode: bool,
+    run_setup: bool,
+    credentials_list: bool,
+    credentials_update: str | None,
+    credentials_remove: str | None,
 ) -> None:
+    if run_setup:
+        run_setup_wizard()
+        return
+
     config = load_config()
+
+    if credentials_list:
+        console.print("\n[bold]Credential status:[/bold]")
+        for name, cfg in config.get("providers", {}).items():
+            env_name = cfg.get("api_key_env")
+            if not env_name:
+                console.print(f"  [cyan]{name:<12}[/cyan] n/a (local provider)")
+                continue
+            in_keyring = has_stored_api_key(name)
+            in_env = bool(os.environ.get(env_name))
+            if in_keyring:
+                status = "stored in keyring"
+            elif in_env:
+                status = f"set via env ({env_name})"
+            else:
+                status = "missing"
+            console.print(f"  [cyan]{name:<12}[/cyan] {status}")
+        console.print()
+        return
+
+    if credentials_update:
+        provider_name = credentials_update.lower().strip()
+        if provider_name not in config.get("providers", {}):
+            console.print(
+                f"[red]Unknown provider '{provider_name}'. Available: {', '.join(config['providers'].keys())}[/red]"
+            )
+            sys.exit(1)
+        env_name = config["providers"][provider_name].get("api_key_env")
+        if not env_name:
+            console.print(f"[red]Provider '{provider_name}' does not use an API key.[/red]")
+            sys.exit(1)
+        if not keyring_is_available():
+            console.print(
+                f"[red]No supported keyring backend available. Set {env_name} as an environment variable instead.[/red]"
+            )
+            sys.exit(1)
+
+        value = click.prompt(
+            f"Paste {provider_name} API key",
+            hide_input=True,
+            confirmation_prompt=True,
+        ).strip()
+        try:
+            set_api_key(provider_name, value)
+        except RuntimeError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        console.print(f"[green]Stored key for '{provider_name}' in OS keyring.[/green]")
+        log_security_event("credentials_update", provider=provider_name)
+        return
+
+    if credentials_remove:
+        provider_name = credentials_remove.lower().strip()
+        if provider_name not in config.get("providers", {}):
+            console.print(
+                f"[red]Unknown provider '{provider_name}'. Available: {', '.join(config['providers'].keys())}[/red]"
+            )
+            sys.exit(1)
+        try:
+            removed = delete_api_key(provider_name)
+        except RuntimeError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        if removed:
+            console.print(f"[green]Removed stored key for '{provider_name}'.[/green]")
+            log_security_event("credentials_remove", provider=provider_name)
+        else:
+            console.print(f"[yellow]No stored key found for '{provider_name}'.[/yellow]")
+        return
     security = config.get("security", {})
     safe_output_enabled = (
         bool(security.get("safe_output", True))
@@ -513,6 +617,11 @@ def cli(
         return
 
     active_provider = resolve_provider(config, provider)
+    if not config["providers"].get(active_provider, {}).get("enabled", True):
+        console.print(
+            f"[red]Provider '{active_provider}' is disabled. Run 'bot --setup' to enable it.[/red]"
+        )
+        sys.exit(1)
 
     if do_clear:
         clear_history(active_provider)

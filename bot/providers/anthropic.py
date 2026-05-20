@@ -1,8 +1,8 @@
 """Anthropic Provider."""
 
-import os
 from collections.abc import Iterator
 
+from ..credentials import get_api_key
 from .base import BaseProvider, ProviderConnectionError, ProviderTimeoutError
 
 
@@ -14,10 +14,10 @@ class AnthropicProvider(BaseProvider):
             raise ImportError("Run: uv add anthropic")
 
         api_key_env = config.get("api_key_env", "ANTHROPIC_API_KEY")
-        api_key = os.environ.get(api_key_env)
+        api_key = get_api_key("anthropic", api_key_env)
         if not api_key:
             raise OSError(
-                f"Missing API key. Set the {api_key_env} environment variable."
+                f"Missing API key. Run 'bot --setup' or set the {api_key_env} environment variable."
             )
         self.client = anthropic.Anthropic(
             api_key=api_key,
