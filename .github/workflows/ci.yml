@@ -20,3 +20,9 @@ jobs:
 
       - name: Lint (ruff)
         run: uv run ruff check .
+
+      - name: Check lockfile is up to date
+        run: uv lock --check
+
+      - name: Audit dependencies for known vulnerabilities
+        run: uv run pip-audit

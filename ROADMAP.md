@@ -31,7 +31,7 @@ A running list of planned improvements and future features.
 - [x] **Provider endpoint allowlist** — restrict custom `base_url` values to https and optionally to trusted hosts
 - [x] **Network safety defaults** — request timeout, retry caps, and clearer network error classes for all providers
 - [x] **Prompt safety guardrails** — optional local prompt-injection warnings for dangerous command suggestions before display
-- [ ] **Dependency and supply-chain checks** — add `uv lock` hygiene checks plus `pip-audit` in CI
+- [x] **Dependency and supply-chain checks** — add `uv lock` hygiene checks plus `pip-audit` in CI
 - [x] **Security policy and disclosure docs** — add `SECURITY.md` with reporting process, supported versions, and response SLAs
 - [x] **Structured security logging** — add local security event log (redacted) for export, clear, and config-changing actions
 - [x] **Threat model and abuse tests** — maintain a lightweight threat model and add regression tests for traversal, malformed JSON, and hostile prompts

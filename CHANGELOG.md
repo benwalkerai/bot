@@ -4,26 +4,60 @@ All notable changes to inzen-bot are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.6] - 2026-05-21
+
+### CI/CD
+
+- Enforce tag/version match and publish only windows installer
+
+## [0.3.5] - 2026-05-20
+
+### Bug Fixes
+
+- Include all Windows executables in release asset upload
 
 ## [0.3.4] - 2026-05-20
+
+### Release
+
+- V0.3.4
+
+## [0.3.3] - 2026-05-20
+
+### Features
+
+- Add Inzen CLI Bot with credential management and setup wizard
+
+### Miscellaneous
+
+- Add Output/ to .gitignore (generated installer binary)
+- Bump version to 0.3.3
+
+### Refactoring
+
+- Rename app to Inzen CLI Bot, keep bot as CLI command
+
+## [0.3.2] - 2026-05-18
+
+### Dependencies
+
+- Upgrade urllib3 to 2.7.0 in lockfile
+
+### Miscellaneous
+
+- Bump version to 0.3.2
+
+## [0.3.1] - 2026-05-18
 
 ### Features
 
 - Enhance security features and improve export functionality
 
-### Security
-
-- Pin transitive `idna` to `>=3.15` to address the ReDoS advisory in older `idna` versions.
-
-### CI
-
-- Build Windows and Linux installers automatically on `main` and pull requests.
-- Publish Windows and Linux installer artifacts to GitHub Releases on version tags.
-
 ### Miscellaneous
 
 - Bump pytest from 9.0.2 to 9.0.3 (#11)
+- Prep release for security enhancements
+- Bump version to 0.3.1
 
 ## [0.3.0] - 2026-04-27
 
