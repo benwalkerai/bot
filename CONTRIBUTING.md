@@ -109,10 +109,33 @@ Outputs are written to `dist/linux/` as both `.deb` and `.rpm` packages.
 
 On tagged releases (`v*`), GitHub Actions builds and publishes all installer assets to the matching GitHub Release:
 
-- `inzen_cli_bot.exe`
 - Windows installer `.exe`
 - Linux `.deb`
 - Linux `.rpm`
+
+## Cutting a release
+
+Preferred path: use the GitHub Actions `Cut Release` workflow.
+
+1. Open **Actions** -> **Cut Release**.
+2. Run on `main`.
+3. Select `release_type` (`patch`, `minor`, `major`) and optional explicit `version`.
+
+The workflow will:
+
+- bump version metadata in `pyproject.toml`
+- run release checks (`pytest`, `ruff`, `uv lock --check`, `pip-audit`)
+- regenerate `CHANGELOG.md`
+- commit to `main`, create tag `vX.Y.Z`, and push both
+
+Pushing the tag then triggers:
+
+- `publish.yml` -> PyPI publish
+- `release-assets.yml` -> Windows installer + Linux `.deb`/`.rpm` assets
+
+Required repository secret:
+
+- `PYPI_API_TOKEN`
 
 ## Security and secrets
 

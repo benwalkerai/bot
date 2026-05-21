@@ -226,6 +226,13 @@ bot --provider openai explain RAID levels
 # Run setup wizard again
 bot --setup
 
+# Update from latest GitHub release
+bot --update
+
+# Set local-provider endpoints without editing config.json
+bot --set-ollama-url http://localhost:11434
+bot --set-llamacpp-url http://localhost:8080
+
 # See API key status (keyring/env)
 bot --credentials-list
 
@@ -238,6 +245,10 @@ bot --set-provider ollama
 
 # Switch model
 bot --set-model claude-opus-4-5
+
+# Toggle insecure remote HTTP provider endpoints in config
+bot --allow-insecure-http
+bot --no-allow-insecure-http
 
 # View conversation history
 bot --history
@@ -260,6 +271,8 @@ bot --history --redact-secrets
 # Export outside safe directories (disabled by default for safety)
 bot --export myproject --output /tmp/myproject.md --unsafe-output
 ```
+
+`bot --update` checks the latest GitHub release and updates in place for Python installs, Linux `.deb`/`.rpm` package installs, and Windows installer-based installs.
 
 ---
 
@@ -473,30 +486,71 @@ CI runs automatically on every push and pull request via GitHub Actions — test
 
 ---
 
-## Releasing to PyPI
+## Releasing
 
-1. **Update the changelog** from conventional commits:
+### Current automated release flow
 
-   ```bash
-   uv run git-cliff --output CHANGELOG.md
-   git add CHANGELOG.md
-   git commit -m "docs: update changelog"
-   ```
+From `v0.3.6` onward, releases are published through GitHub Actions and include:
 
-2. **Bump the version** — updates `pyproject.toml`, creates a commit, and tags it automatically:
+- PyPI package publish (`inzen-bot`)
+- Windows installer EXE
+- Linux `.deb`
+- Linux `.rpm`
 
-   ```bash
-   # patch: 0.2.1 → 0.2.2  |  minor: 0.2.1 → 0.3.0  |  major: 0.2.1 → 1.0.0
-   uv run bump-my-version bump patch
-   ```
+The release pipeline validates that the Git tag version matches `pyproject.toml` before assets are published.
 
-3. **Push the commit and tag** — the tag triggers the PyPI publish workflow:
+### Recommended: one-click release (workflow dispatch)
 
-   ```bash
-   git push && git push --tags
-   ```
+Use the **Cut Release** workflow in GitHub Actions:
 
-The `publish.yml` GitHub Actions workflow runs the tests, builds the package, and publishes to PyPI automatically via the `PYPI_API_TOKEN` secret.
+1. Open **Actions** → **Cut Release**.
+2. Click **Run workflow** on `main`.
+3. Choose `release_type` (`patch`, `minor`, or `major`).
+4. Optional: set `version` (for explicit version, e.g. `0.3.7`).
+
+What this workflow does automatically:
+
+1. Bumps version in `pyproject.toml` (and bump-my-version metadata).
+2. Runs release checks:
+  - `uv run pytest -v`
+  - `uv run ruff check .`
+  - `uv lock --check`
+  - `uv run pip-audit`
+3. Regenerates `CHANGELOG.md` with `git-cliff`.
+4. Commits release files to `main`.
+5. Creates and pushes tag `vX.Y.Z`.
+6. Triggers:
+  - `publish.yml` to publish on PyPI
+  - `release-assets.yml` to publish Windows/Linux assets
+
+### Manual fallback (if needed)
+
+```bash
+# 1) Bump version without auto-commit/tag
+uv run bump-my-version bump patch --no-commit --no-tag
+
+# 2) Regenerate changelog
+uv run git-cliff --output CHANGELOG.md
+
+# 3) Run release checks
+uv run pytest -v
+uv run ruff check .
+uv lock --check
+uv run pip-audit
+
+# 4) Commit and tag
+git add pyproject.toml uv.lock CHANGELOG.md
+git commit -m "chore: bump version to <version>"
+git tag -a v<version> -m "v<version>"
+
+# 5) Push
+git push origin main
+git push origin v<version>
+```
+
+Required repository secret for publish:
+
+- `PYPI_API_TOKEN`
 
 ---
 

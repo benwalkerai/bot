@@ -1,0 +1,94 @@
+name: Cut Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Version bump type"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      version:
+        description: "Optional explicit version (e.g. 0.3.7). Leave blank to auto-bump."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  cut-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure workflow runs from main
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "Cut releases from main only. Current ref: ${GITHUB_REF_NAME}"
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install project dependencies
+        run: uv sync --extra dev
+
+      - name: Bump version (no commit/tag yet)
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.version }}" ]; then
+            uv run bump-my-version bump "${{ inputs.release_type }}" --new-version "${{ inputs.version }}" --no-commit --no-tag
+          else
+            uv run bump-my-version bump "${{ inputs.release_type }}" --no-commit --no-tag
+          fi
+
+      - name: Read new version
+        id: version
+        run: |
+          new_version=$(python - <<'PY'
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              print(tomllib.load(f)["project"]["version"])
+          PY
+          )
+          echo "new_version=${new_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Run release checks
+        run: |
+          uv run pytest -v
+          uv run ruff check .
+          uv lock --check
+          uv run pip-audit
+
+      - name: Regenerate changelog
+        run: uv run git-cliff --output CHANGELOG.md
+
+      - name: Commit release changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml uv.lock CHANGELOG.md
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+
+      - name: Tag release
+        run: git tag -a "v${{ steps.version.outputs.new_version }}" -m "v${{ steps.version.outputs.new_version }}"
+
+      - name: Push commit and tag
+        run: |
+          git push origin HEAD:main
+          git push origin "v${{ steps.version.outputs.new_version }}"
+
+      - name: Release summary
+        run: |
+          echo "Cut release v${{ steps.version.outputs.new_version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "This pushed a version commit to main and tag v${{ steps.version.outputs.new_version }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag workflows now publish PyPI and GitHub release assets." >> "$GITHUB_STEP_SUMMARY"

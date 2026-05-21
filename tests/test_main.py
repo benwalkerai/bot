@@ -53,6 +53,26 @@ def test_setup_runs_wizard(runner):
         mock_setup.assert_called_once()
 
 
+def test_update_runs_and_succeeds(runner):
+    with patch("bot.main.run_self_update", return_value=(True, "updated")) as mock_update:
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--update"])
+        assert result.exit_code == 0
+        assert "updated" in result.output
+        mock_update.assert_called_once()
+
+
+def test_update_runs_and_fails(runner):
+    with patch("bot.main.run_self_update", return_value=(False, "failed")) as mock_update:
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--update"])
+        assert result.exit_code == 1
+        assert "failed" in result.output
+        mock_update.assert_called_once()
+
+
 def test_credentials_list_shows_statuses(runner, mock_config):
     with (
         patch("bot.main.load_config", return_value=mock_config),
@@ -141,6 +161,83 @@ def test_set_model(runner, mock_config):
         assert result.exit_code == 0
         assert "claude-opus-4-5" in result.output
         mock_save.assert_called_once()
+
+
+def test_allow_insecure_http_enable(runner, mock_config):
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.save_config") as mock_save,
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--allow-insecure-http"])
+        assert result.exit_code == 0
+        assert "allow_insecure_http enabled" in result.output
+        mock_save.assert_called_once()
+        saved_config = mock_save.call_args[0][0]
+        assert saved_config["security"]["allow_insecure_http"] is True
+
+
+def test_allow_insecure_http_disable(runner, mock_config):
+    config = {
+        **mock_config,
+        "security": {"allow_insecure_http": True},
+    }
+    with (
+        patch("bot.main.load_config", return_value=config),
+        patch("bot.main.save_config") as mock_save,
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--no-allow-insecure-http"])
+        assert result.exit_code == 0
+        assert "allow_insecure_http disabled" in result.output
+        mock_save.assert_called_once()
+        saved_config = mock_save.call_args[0][0]
+        assert saved_config["security"]["allow_insecure_http"] is False
+
+
+def test_set_ollama_url(runner, mock_config):
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.save_config") as mock_save,
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--set-ollama-url", "http://localhost:11434"])
+        assert result.exit_code == 0
+        assert "Ollama base URL set" in result.output
+        mock_save.assert_called_once()
+        saved_config = mock_save.call_args[0][0]
+        assert saved_config["providers"]["ollama"]["base_url"] == "http://localhost:11434"
+
+
+def test_set_llamacpp_url(runner, mock_config):
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.save_config") as mock_save,
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--set-llamacpp-url", "http://localhost:8080"])
+        assert result.exit_code == 0
+        assert "llama.cpp base URL set" in result.output
+        mock_save.assert_called_once()
+        saved_config = mock_save.call_args[0][0]
+        assert saved_config["providers"]["llamacpp"]["base_url"] == "http://localhost:8080"
+
+
+def test_set_ollama_url_rejects_insecure_remote(runner, mock_config):
+    with (
+        patch("bot.main.load_config", return_value=mock_config),
+        patch("bot.main.save_config") as mock_save,
+    ):
+        from bot.main import cli
+
+        result = runner.invoke(cli, ["--set-ollama-url", "http://example.com:11434"])
+        assert result.exit_code == 1
+        assert "Insecure base_url" in result.output
+        mock_save.assert_not_called()
 
 
 def test_clear_history(runner, mock_config):

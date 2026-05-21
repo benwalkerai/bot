@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import click
 from rich.console import Console
+from urllib.parse import urlparse
 
 from .config import get_provider_config, load_config, save_config
 from .credentials import has_stored_api_key, keyring_is_available, set_api_key
@@ -21,6 +22,13 @@ API_KEY_PROVIDERS = {
         "models": ["gpt-4o-mini", "gpt-4o"],
     },
 }
+
+
+def _is_insecure_remote_url(url: str) -> bool:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    is_local = host in {"localhost", "127.0.0.1", "::1"}
+    return parsed.scheme.lower() != "https" and not is_local
 
 
 def _ask_enable(provider: str, current: bool) -> bool:
@@ -71,6 +79,7 @@ def _print_next_steps(config: dict, use_keyring: bool) -> None:
 def run_setup_wizard() -> None:
     config = load_config()
     providers = config.setdefault("providers", {})
+    security = config.setdefault("security", {})
     use_keyring = keyring_is_available()
 
     console.print("[bold]Inzen CLI Bot setup wizard[/bold]")
@@ -133,6 +142,16 @@ def run_setup_wizard() -> None:
                 default=provider_cfg.get("base_url", "http://localhost:11434"),
                 show_default=True,
             )
+            if _is_insecure_remote_url(provider_cfg["base_url"]):
+                allow_insecure = bool(security.get("allow_insecure_http", False))
+                if not allow_insecure:
+                    should_enable = click.confirm(
+                        "Ollama URL is insecure on a non-local host. Enable allow_insecure_http?",
+                        default=False,
+                    )
+                    if should_enable:
+                        security["allow_insecure_http"] = True
+                        console.print("[yellow]Enabled security.allow_insecure_http.[/yellow]")
             provider_cfg["model"] = click.prompt(
                 "Ollama model",
                 default=provider_cfg.get("model", "llama3"),
@@ -144,6 +163,16 @@ def run_setup_wizard() -> None:
                 default=provider_cfg.get("base_url", "http://localhost:8080"),
                 show_default=True,
             )
+            if _is_insecure_remote_url(provider_cfg["base_url"]):
+                allow_insecure = bool(security.get("allow_insecure_http", False))
+                if not allow_insecure:
+                    should_enable = click.confirm(
+                        "llama.cpp URL is insecure on a non-local host. Enable allow_insecure_http?",
+                        default=False,
+                    )
+                    if should_enable:
+                        security["allow_insecure_http"] = True
+                        console.print("[yellow]Enabled security.allow_insecure_http.[/yellow]")
             provider_cfg["model"] = click.prompt(
                 "llama.cpp model",
                 default=provider_cfg.get("model", "local"),

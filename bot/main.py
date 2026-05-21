@@ -51,6 +51,7 @@ from .config import (
 from .providers import PROVIDERS, get_provider
 from .providers.base import ProviderConnectionError, ProviderTimeoutError
 from .setup import run_setup_wizard
+from .update import run_self_update
 from .credentials import delete_api_key, has_stored_api_key, keyring_is_available, set_api_key
 
 console = Console()
@@ -252,6 +253,28 @@ def run_turn(
 @click.option(
     "--set-model", default=None, help="Set the model for the current provider."
 )
+@click.option(
+    "--set-ollama-url",
+    default=None,
+    help="Set providers.ollama.base_url in config.",
+)
+@click.option(
+    "--set-llamacpp-url",
+    default=None,
+    help="Set providers.llamacpp.base_url in config.",
+)
+@click.option(
+    "--update",
+    "do_update",
+    is_flag=True,
+    help="Update bot from the latest GitHub release.",
+)
+@click.option(
+    "--allow-insecure-http/--no-allow-insecure-http",
+    "allow_insecure_http",
+    default=None,
+    help="Set security.allow_insecure_http in config.",
+)
 @click.option("--clear", "do_clear", is_flag=True, help="Clear conversation history.")
 @click.option(
     "--history", "show_history", is_flag=True, help="Print conversation history"
@@ -360,6 +383,10 @@ def cli(
     provider: str | None,
     set_provider: str | None,
     set_model: str | None,
+    set_ollama_url: str | None,
+    set_llamacpp_url: str | None,
+    do_update: bool,
+    allow_insecure_http: bool | None,
     do_clear: bool,
     show_history: bool,
     list_providers: bool,
@@ -381,6 +408,16 @@ def cli(
     credentials_update: str | None,
     credentials_remove: str | None,
 ) -> None:
+    if do_update:
+        success, message = run_self_update()
+        if success:
+            console.print(f"[green]{message}[/green]")
+            log_security_event("self_update", success=True, message=message)
+            return
+        console.print(f"[red]{message}[/red]")
+        log_security_event("self_update", success=False, message=message)
+        sys.exit(1)
+
     if run_setup:
         run_setup_wizard()
         return
@@ -455,6 +492,16 @@ def cli(
         else:
             console.print(f"[yellow]No stored key found for '{provider_name}'.[/yellow]")
         return
+
+    if allow_insecure_http is not None:
+        security = config.setdefault("security", {})
+        security["allow_insecure_http"] = allow_insecure_http
+        save_config(config)
+        state = "enabled" if allow_insecure_http else "disabled"
+        console.print(f"[green]security.allow_insecure_http {state}.[/green]")
+        log_security_event("set_allow_insecure_http", enabled=allow_insecure_http)
+        return
+
     security = config.get("security", {})
     safe_output_enabled = (
         bool(security.get("safe_output", True))
@@ -614,6 +661,32 @@ def cli(
         save_config(config)
         console.print(f"[green]Model for '{active}' set to '{set_model}'.[/green]")
         log_security_event("set_model", provider=active, model=set_model)
+        return
+
+    if set_ollama_url:
+        config.setdefault("providers", {}).setdefault("ollama", {})["base_url"] = set_ollama_url
+        try:
+            get_provider_config(config, "ollama")
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        save_config(config)
+        console.print(f"[green]Ollama base URL set to '{set_ollama_url}'.[/green]")
+        log_security_event("set_provider_base_url", provider="ollama", base_url=set_ollama_url)
+        return
+
+    if set_llamacpp_url:
+        config.setdefault("providers", {}).setdefault("llamacpp", {})[
+            "base_url"
+        ] = set_llamacpp_url
+        try:
+            get_provider_config(config, "llamacpp")
+        except ValueError as e:
+            console.print(f"[red]Error:[/red] {e}")
+            sys.exit(1)
+        save_config(config)
+        console.print(f"[green]llama.cpp base URL set to '{set_llamacpp_url}'.[/green]")
+        log_security_event("set_provider_base_url", provider="llamacpp", base_url=set_llamacpp_url)
         return
 
     active_provider = resolve_provider(config, provider)

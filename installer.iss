@@ -2,7 +2,7 @@
 ; This script creates a Windows installer for your app
 
 #ifndef MyAppVersion
-	#define MyAppVersion "1.0.0"
+	#define MyAppVersion "0.3.7"
 #endif
 
 #ifndef MyOutputBaseFilename
